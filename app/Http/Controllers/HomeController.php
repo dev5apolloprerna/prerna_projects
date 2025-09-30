@@ -10,9 +10,15 @@ use Illuminate\Support\Facades\Hash;
 use Session;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Role;
-use App\Models\Blog;
-use App\Models\SpecialtyMaster;
-use App\Models\SpecialityOtherDetail;
+use App\Models\Customer;
+use App\Models\Tanker;
+use App\Models\EmployeeMaster;
+use App\Models\GodownMaster;
+use App\Models\VendorMaster;
+use App\Models\OrderMaster;
+use App\Models\DailyExpence;
+use App\Models\EmpAttendance;
+
 use Carbon\Carbon;
 
 class HomeController extends Controller
@@ -36,12 +42,63 @@ class HomeController extends Controller
     {
         try
         {
+                $customerCount = Customer::where('iStatus', 1)->where('isDelete', 0)->count();
+                $tankerCount = Tanker::where('iStatus', 1)->where('isDelete', 0)->count();
+                $intankerCount = Tanker::where(['status'=>0,'iStatus'=>1,'isDelete'=> 0])->count();
+                $outtankerCount = Tanker::where(['status'=>1,'iStatus'=>1,'isDelete'=> 0])->count();
+                $employeeTotal  = EmployeeMaster::where(['iStatus'=>1,'isDelete'=> 0])->count();              // not deleted = all rows (hard delete)
+                $godownTotal  = GodownMaster::where(['iStatus'=>1,'isDelete'=> 0])->count();
+                $vendorCount = VendorMaster::where(['iStatus'=>1,'isDelete'=> 0])->count();
+                $orderCount = OrderMaster::where(['isDelete' => 0, 'iStatus' => 1])->count();
 
-            $blogCount = Blog::where('isDelete', 0)->count();
-            $specialtyCount = SpecialtyMaster::where('isDelete', 0)->where('iStatus', 1)->count();
-            $otherDetailCount = SpecialityOtherDetail::where('isDelete', 0)->where('iStatus', 1)->count();
 
-            return view('home',compact('blogCount','specialtyCount','otherDetailCount'));
+        $today  = Carbon::today();
+        $todayEnd    = Carbon::today()->endOfDay();
+        $monthStart  = Carbon::now()->startOfMonth();
+        $monthEnd    = Carbon::now()->endOfMonth();
+
+        // Totals (₹) with flags
+        $todayTotal = DailyExpence::alive()
+            ->where('iStatus', 1)
+            ->whereBetween('created_at', [$today, $todayEnd])
+            ->sum('amount');
+
+        $monthTotal = DailyExpence::alive()
+            ->where('iStatus', 1)
+            ->whereBetween('created_at', [$monthStart, $monthEnd])
+            ->sum('amount');
+
+        // (Optional) counts of entries
+        $todayCount = DailyExpence::alive()
+            ->where('iStatus', 1)
+            ->whereBetween('created_at', [$today, $todayEnd])
+            ->count();
+
+        $monthCount = DailyExpence::alive()
+            ->where('iStatus', 1)
+            ->whereBetween('created_at', [$monthStart, $monthEnd])
+            ->count();
+
+        // (Optional) per-day series for current month (for charts)
+        $monthDailySeries = DailyExpence::alive()
+            ->where('iStatus', 1)
+            ->whereBetween('created_at', [$monthStart, $monthEnd])
+            ->selectRaw('DATE(created_at) as d, SUM(amount) as total')
+            ->groupBy('d')
+            ->orderBy('d')
+            ->pluck('total', 'd'); // ['2025-09-01' => 1200, ...]
+
+
+
+        $presentCount = EmpAttendance::whereDate('attendance_date', $today)
+            ->whereIN('status', ['P','H'])
+            ->count();
+
+        $absentCount = EmpAttendance::whereDate('attendance_date', $today)
+            ->where('status', 'A')
+            ->count();
+
+                return view('home',compact('customerCount','tankerCount','intankerCount','outtankerCount','employeeTotal','godownTotal','vendorCount','orderCount','todayTotal', 'monthTotal', 'todayCount', 'monthCount', 'monthDailySeries','presentCount','absentCount','today'));
 
         } catch (\Exception $e) {
         report($e);
