@@ -16,6 +16,18 @@
         <div class="modal-body">
           <div class="mb-3">
             <label class="form-label">Tanker Name <span style="color:red;">*</span></label>
+            <select name="godown_id" class="form-control">
+              <option value="">Select Godown</option>
+              @foreach($godown as $gdn)
+                  <option value="{{ $gdn->godown_id }}" {{ old('godown_id') == $gdn->godown_id ? 'selected' : '' }}>{{ $gdn->Name }}</option>
+              @endforeach
+              </select>
+            @error('godown_id')
+              <div class="invalid-feedback">{{ $message }}</div>
+            @enderror
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Tanker Name <span style="color:red;">*</span></label>
             <input type="text" name="tanker_name" class="form-control @error('tanker_name') is-invalid @enderror"
                    value="{{ old('tanker_name') }}">
             @error('tanker_name')

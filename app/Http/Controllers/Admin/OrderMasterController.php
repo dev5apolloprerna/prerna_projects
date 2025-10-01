@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\Tanker;
 use App\Models\RentPrice;
 use App\Models\OrderPayment;
+use App\Models\GodownMaster;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
@@ -45,7 +46,18 @@ class OrderMasterController extends Controller
 
 
         $orders = $q->orderByDesc('order_id')->paginate(10)->withQueryString();
-        return view('admin.orders.index', compact('orders'));
+        $totalPaid = 0;
+        $totalUnpaid = 0;
+        
+        foreach ($orders as $o) {
+            $snap = $o->dueSnapshot();
+            $totalPaid += $snap['paid_sum'];
+            $totalUnpaid += $snap['unpaid'];
+        }
+            
+        $godowns =GodownMaster::select('godown_id','Name')->orderBy('Name')->get();
+
+        return view('admin.orders.index', compact('orders','totalPaid','totalUnpaid','godowns'));
     }
 
     // CREATE
@@ -207,10 +219,18 @@ class OrderMasterController extends Controller
             }
         return redirect()->route('orders.index')->with('success', 'Order updated successfully.');
         });
-    
-
-
     }
+    public function tankerDetails($id)
+    {
+        $order = OrderMaster::with(['tanker', 'customer'])->findOrFail($id);
+
+        // If you already use this snapshot everywhere:
+        $snap = method_exists($order, 'dueSnapshot') ? $order->dueSnapshot() : null;
+
+        // Return a partial (works with AJAX or direct render)
+        return view('admin.orders.tanker_details', compact('order', 'snap'));
+    }
+
 
     // SOFT DELETE (set isDelete=1)
     public function destroy($id)
@@ -248,6 +268,7 @@ class OrderMasterController extends Controller
     {
         $order = OrderMaster::findOrFail($id);
         $order->isReceive = $order->isReceive == 1 ? 0 : 1;
+        $order->received_at = null; 
         $order->save();
 
         Tanker::where('tanker_id', $order->tanker_id)->update(['status' => $order->isReceive ? 1 : 0]);
@@ -255,6 +276,31 @@ class OrderMasterController extends Controller
 
         return redirect()->back()->with('success', 'Receive status updated successfully.');
     }
+    public function markReceived(Request $request, $id)
+    {
+        $request->validate([
+            'godown_id' => 'required|integer',
+        ]);
+
+        $order = OrderMaster::findOrFail($id);
+        $order->received_at = date('Y-m-d h:i:s');                   // 0 = Received (as per your current logic/UI)
+        $order->extra_amount = intval(preg_replace('/[^\d]/', '', (string) $request->extra_amount));
+        $order->extra_duration = $request->extra_day ? (int)$request->extra_day : null;
+        $order->extraDM = $request->duration_text ?? null;
+        $order->isReceive = 0;                   // 0 = Received (as per your current logic/UI)
+        $order->save();
+
+        $tanker = Tanker::findOrFail($order->tanker_id);
+
+        // mark as RECEIVED
+        $tanker->status = 0;                   // 0 = Received (as per your current logic/UI)
+        $tanker->godown_id = $request->godown_id ?? null;  // ensure column exists (note below)
+        $tanker->save();
+
+
+        return back()->with('success', 'Marked as RECEIVED in the selected godown.');
+    }
+
     private function syncTankerStatus(int $tankerId, string $tankerLocation): void
     {
         // outside => status = 1 ; anything else => 0

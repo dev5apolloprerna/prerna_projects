@@ -44,11 +44,19 @@
 
             {{-- Top bar: bulk delete + search --}}
             <div class="row mb-3">
-                <div class="col-md-6">
+                <div class="col-md-8">
                     <button id="btnBulkDelete" class="btn btn-sm btn-danger">
                         <i class="far fa-trash-alt"></i> Bulk Delete
                     </button>
                 </div>
+               
+                <div class="col-md-2">
+                    <div class="text-end mt-2">
+                    <span class="badge bg-success me-2">Total Paid: {{ $totalPaid }}</span>
+                    <span class="badge bg-danger me-2">Total Unpaid: {{ $totalUnpaid }} </span>
+                    </div>
+                </div>
+                
                 
             </div>
 
@@ -69,19 +77,27 @@
                                     <th>Ref. Mobile</th> -->
                                     <th>Tanker Location</th>
                                     <!-- <th>Created At</th> {{-- must be shown --}} -->
-                                    <th>Base</th>
-                                    <th>Extra</th>
+                                    <th>Rent</th>
+                                    <th>M/D</th>
                                     <th>Total</th>
                                     <th>Paid</th>
                                     <th>Unpaid</th>
                                     <th>Tanker Status</th>
-                                    <th style="width:110px;">Action</th>
+                                    <th >Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @forelse($orders as $o)
                                 @php
                                     $snap = $o->dueSnapshot();
+                                  
+                                    $durationText = $snap['rent_basis'] === 'daily'
+                                        ? "{$snap['days_used']} day" . ($snap['days_used'] > 1 ? 's' : '')
+                                        : "{$snap['months']} month" . ($snap['months'] > 1 ? 's' : '');
+
+                                    // If you only want a numeric "days" value when daily:
+                                    $durationDays = $snap['rent_basis'] === 'daily' ? (int)$snap['days_used'] : '';
+
                                   @endphp
                                     <tr data-id="{{ $o->order_id }}">
                                         <td><input type="checkbox" class="row-check" value="{{ $o->order_id }}"></td>
@@ -90,7 +106,7 @@
                                         <td>{{ $o->tanker->tanker_code ?? '-' }}</td>
                                         <td>{{ $o->tanker->tanker_name ?? '-' }}</td>
                                         <!-- <td>{{ ucfirst($o->rent_type) }}</td> -->
-                                        <td>{{ \Carbon\Carbon::parse($o->rent_start_date)->format('d-m-Y H:i') }}</td>
+                                        <td>{{ \Carbon\Carbon::parse($o->rent_start_date)->format('d-m-Y') }}</td>
                                         <!-- <td>{{ number_format($o->advance_amount) }}</td>
                                         <td>{{ number_format($o->rent_amount) }}</td>
                                         <td>{{ $o->reference_name }}</td>
@@ -99,14 +115,17 @@
                                         <!-- <td>{{ \Carbon\Carbon::parse($o->created_at)->format('d M Y H:i') }}</td> -->
                                         
                                           <td>₹{{ number_format($snap['base']) }}</td>
-                                          <td>
-                                            ₹{{ number_format($snap['extra']) }}
-                                            @if($snap['extra'] > 0)
-                                              <small class="text-muted">
-                                                {{ $snap['rent_basis'] === 'daily' ? "(+{$snap['extra_days']} d)" : "(+{$snap['extra_days']} d after 30)" }}
-                                              </small>
+                                        <td>
+                                          <!--<strong>₹{{ number_format($snap['total_due']) }}</strong>-->
+                                          <div class="small text-muted">
+                                            @if($snap['rent_basis'] === 'daily')
+                                            
+                                              ({{ $snap['days_used'] }} day{{ $snap['days_used'] > 1 ? 's' : '' }})
+                                            @else
+                                              ({{ $snap['months'] }} month{{ $snap['months'] > 1 ? 's' : '' }})
                                             @endif
-                                          </td>
+                                          </div>
+                                        </td>
                                           <td><strong>₹{{ number_format($snap['total_due']) }}</strong></td>
                                           <td>₹{{ number_format($snap['paid_sum']) }}</td>
                                           <td class="{{ $snap['unpaid']>0 ? 'text-danger fw-bold' : '' }}">
@@ -114,26 +133,30 @@
                                           </td>
 
                                         <td>
-                                          @php
-                                              // If isReceive = 1 (currently Not Received) → next state is RECEIVED
-                                              $confirmMsg = $o->isReceive == 1
-                                                  ? "Are you sure you want to mark as RECEIVED?"
-                                                  : "Are you sure you want to mark as NOT RECEIVED?";
-                                            @endphp
+                                         @if($o->isReceive == 1)
+                                            {{-- Was linking to toggle — now opens modal --}}
+                                            <button
+                                              type="button"
+                                              class="btn btn-sm btn-danger"
+                                              data-bs-toggle="modal"
+                                              data-bs-target="#receivedModal"
+                                              data-order-id="{{ $o->order_id }}"
+                                              data-extra-amount="{{ number_format($snap['total_due']) }}"
+                                              data-extra-day="{{ $durationDays }}"                 {{-- e.g., 8 (empty for monthly) --}}
+                                              data-rent-basis="{{ $snap['rent_basis'] }}"         {{-- 'daily' or 'monthly' --}}
+                                              data-duration-text="{{ $durationText }}"         {{-- e.g., "(8 days)" or "(2 months)" --}}
+                                              title="Mark as Received">
+                                              Not Received
+                                            </button>
+                                          @else
+                                            {{-- Keep existing toggle back to Not Received --}}
+                                            <a href="{{ route('orders.toggle-receive', $o->order_id) }}"
+                                              class="btn btn-sm btn-success"
+                                              onclick="return confirm('Are you sure you want to mark as NOT RECEIVED?')">
+                                              Received
+                                            </a>
+                                          @endif
 
-                                            @if($o->isReceive == 1)
-                                              <a href="{{ route('orders.toggle-receive', $o->order_id) }}"
-                                                 class="btn btn-sm btn-danger"
-                                                 onclick="return confirm('{{ $confirmMsg }}')">
-                                                 Not Received
-                                              </a>
-                                            @else
-                                              <a href="{{ route('orders.toggle-receive', $o->order_id) }}"
-                                                 class="btn btn-sm btn-success"
-                                                 onclick="return confirm('{{ $confirmMsg }}')">
-                                                 Received
-                                              </a>
-                                            @endif
 
                                         </td>
                                        <!--  <td>
@@ -149,6 +172,15 @@
                                             <a href="javascript:void(0)" class="btn btn-sm btn-light text-white btnDelete" title="Delete" data-id="{{ $o->order_id }}">
                                                 <i class="fas fa-trash-alt"></i>
                                             </a>
+                                            <button
+                                              class="btn btn-sm btn-info"
+                                              data-bs-toggle="modal"
+                                              data-bs-target="#tankerDetailsModal"
+                                              data-order-id="{{ $o->order_id }}"
+                                              title="Tanker Details">
+                                              <i class="fas fa-truck"></i>
+                                            </button>
+
                                             <button
                                               class="btn btn-sm btn-warning"
                                               data-bs-toggle="modal"
@@ -177,6 +209,66 @@
     </div>
 </div>
 
+{{-- Tanker Details Modal --}}
+<div class="modal fade" id="tankerDetailsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">Tanker Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body" id="tankerDetailsBody">
+        <div class="text-center py-4">Loading details…</div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-light" type="button" data-bs-dismiss="modal">Close</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+{{-- Mark as Received Modal --}}
+<div class="modal fade" id="receivedModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="POST" class="modal-content" id="receivedForm">
+      @csrf
+        <input type="hidden" name="extra_amount" id="rcv_extra_amount">  {{-- hidden --}}
+  <input type="hidden" name="extra_day"     id="rcv_extra_day">
+  <input type="hidden" name="rent_basis"    id="rcv_rent_basis">
+  <input type="hidden" name="duration_text" id="rcv_duration_text"> {{-- optional --}}
+
+      <div class="modal-header">
+        <h5 class="modal-title">Mark as Received</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Select Godown <span class="text-danger">*</span></label>
+          <select name="godown_id" class="form-select" required>
+            <option value="">-- Choose --</option>
+            @foreach($godowns as $g)
+              <option value="{{ $g->godown_id }}">{{ $g->Name }}</option>
+            @endforeach
+          </select>
+        </div>
+
+        {{-- Optional: a note or extra fields (received date, remarks) --}}
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-primary" type="submit">Save</button>
+        <button class="btn btn-light" type="button" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="card">
@@ -203,7 +295,7 @@
       <div class="modal-body">
 
         <div class="mb-2">
-          <label class="form-label">Unpaid (Current)</label>
+          <label class="form-label">Due Amount</label>
           <input type="text" id="pm_unpaid" class="form-control" readonly>
         </div>
 
@@ -228,6 +320,35 @@
 
 @section('scripts')
 <script>
+// for mark as received modal
+document.getElementById('receivedModal').addEventListener('show.bs.modal', function (event) {
+  const btn  = event.relatedTarget;
+  const id   = btn.dataset.orderId;
+
+  // set form action
+  const form = document.getElementById('receivedForm');
+  let url = "{{ route('orders.mark-received', ':id') }}";
+  form.action = url.replace(':id', id);
+
+  // grab data from button
+  const extraAmount  = btn.dataset.extraAmount || '0';
+  const extraDay     = btn.dataset.extraDay || '';
+  const rentBasis    = btn.dataset.rentBasis || '';
+  const durationText = btn.dataset.durationText || '';
+
+  // set hidden inputs
+  document.getElementById('rcv_extra_amount').value  = extraAmount;
+  document.getElementById('rcv_extra_day').value     = extraDay;
+  document.getElementById('rcv_rent_basis').value    = rentBasis;
+  document.getElementById('rcv_duration_text').value = durationText;
+
+  // (optional) show a preview somewhere
+  const previewEl = document.getElementById('rcv_extra_amount_view');
+  if (previewEl) previewEl.value = '₹' + Number(extraAmount).toLocaleString('en-IN');
+});
+
+
+// confirm before toggling
     document.querySelectorAll('.toggle-receive-form').forEach(function(form){
   form.addEventListener('submit', function(e){
     e.preventDefault();
@@ -320,6 +441,22 @@ document.getElementById('paymentModal').addEventListener('show.bs.modal', functi
       historyWrap.innerHTML = '<div class="alert alert-danger">Unable to load payment history.</div>';
     });
 });
+
+  document.getElementById('tankerDetailsModal').addEventListener('show.bs.modal', function (event) {
+    const btn   = event.relatedTarget;
+    const id    = btn.getAttribute('data-order-id');
+    const body  = document.getElementById('tankerDetailsBody');
+
+    body.innerHTML = '<div class="text-center py-4">Loading details…</div>';
+
+    let url = "{{ route('orders.tanker-details', ':id') }}";
+    url = url.replace(':id', id);
+
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(r => r.text())
+      .then(html => { body.innerHTML = html; })
+      .catch(() => { body.innerHTML = '<div class="alert alert-danger">Unable to load tanker details.</div>'; });
+  });
 
 </script>
 @endsection

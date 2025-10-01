@@ -5,13 +5,14 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Tanker;
+use App\Models\GodownMaster;
 use Illuminate\Validation\Rule;
 
 class TankerController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Tanker::where('isDelete', 0);
+        $query = Tanker::with('godown')->where('isDelete', 0);
 
         if ($request->tanker_name) {
             $query->where('tanker_name', 'LIKE', '%' . $request->tanker_name . '%');
@@ -22,8 +23,9 @@ class TankerController extends Controller
         }
 
         $tankers = $query->orderBy('tanker_id', 'DESC')->paginate(10);
+        $godown=GodownMaster::where('isDelete',0)->where('iStatus',1)->get();
 
-        return view('admin.tanker.index', compact('tankers'));
+        return view('admin.tanker.index', compact('tankers','godown'));
     }
 
     public function store(Request $request)
@@ -35,6 +37,7 @@ class TankerController extends Controller
                     ->where(fn($q) => $q->where('isDelete', 0)),
             ],
             'tanker_code' => ['required','max:150'], // make unique if you want
+            'godown_id' => ['required','max:150'], // make unique if you want
             'status'      => 'required|in:0,1',
         ]);
 
@@ -43,6 +46,7 @@ class TankerController extends Controller
             Tanker::create([
                     'tanker_name' => $request->input('tanker_name'),
                     'tanker_code' => $request->input('tanker_code'),
+                    'godown_id' => $request->input('godown_id'),
                     'status'      => (int)$request->input('status'),
                     'slug'        => $slug,
                 ]);
@@ -65,6 +69,7 @@ class TankerController extends Controller
                     ->ignore($id, 'tanker_id'),
             ],
             'tanker_code' => ['required','max:150'], // make unique if you want
+            'godown_id' => ['required','max:150'], // make unique if you want
             'status'      => 'required|in:0,1',
         ]);
 
@@ -79,11 +84,29 @@ class TankerController extends Controller
         $tanker->update([
             'tanker_name' => $request->input('tanker_name'),
             'tanker_code' => $request->input('tanker_code'),
+            'godown_id' => $request->input('godown_id'),
             'status'      => (int)$request->input('status'),
             'slug'        => $slug,
         ]);
 
         return redirect()->route('tanker.index')->with('success', 'Tanker updated successfully.');
+    }
+    public function inGodown(Request $request)
+    {
+        $query =Tanker::query()
+            ->where(['status' => 0, 'iStatus' => 1, 'isDelete' => 0]);
+
+        if ($search = trim($request->input('search'))) {
+            $query->where(function ($q) use ($search) {
+                $q->where('tanker_name', 'like', "%{$search}%")
+                ->orWhere('tanker_code', 'like', "%{$search}%")
+                ->orWhere('tanker_location', 'like', "%{$search}%");
+            });
+        }
+
+        $tankers = $query->with('order','godown')->orderBy('tanker_name')->paginate(20)->withQueryString();
+
+        return view('admin.tanker.in_godown', compact('tankers'));
     }
 
 

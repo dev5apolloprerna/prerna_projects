@@ -85,9 +85,8 @@ Route::prefix('admin')->group(function () {
     Route::post('tanker/delete', [TankerController::class, 'delete'])->name('tanker.delete');
     Route::post('tanker/bulk-delete', [TankerController::class, 'bulkDelete'])->name('tanker.bulkDelete');
     Route::get('tanker/names', [TankerController::class, 'names'])->name('tankers.names');
-
+    Route::get('tankers/in-godown', [TankerController::class, 'inGodown'])->name('tankers.in-godown');
 });
-
 
 // Employee Master
 Route::prefix('admin')->group(function () {
@@ -138,10 +137,16 @@ Route::prefix('admin')->group(function () {
     Route::post('orders',              [OrderMasterController::class, 'store'])->name('orders.store');
     Route::get('orders/{id}/edit',     [OrderMasterController::class, 'edit'])->name('orders.edit');
     Route::put('orders/{id}',          [OrderMasterController::class, 'update'])->name('orders.update');
+    Route::get('/orders/{order}/tanker-details', [OrderMasterController::class, 'tankerDetails'])
+     ->name('orders.tanker-details');
+
     Route::delete('orders/{id}',       [OrderMasterController::class, 'destroy'])->name('orders.destroy');
     Route::post('orders/bulk-delete',  [OrderMasterController::class, 'bulkDelete'])->name('orders.bulk-delete');
     Route::post('orders/change-status/{id}', [OrderMasterController::class, 'changeStatus'])->name('orders.change-status');
     Route::get('orders/{id}/toggle-receive', [OrderMasterController::class, 'toggleReceive'])->name('orders.toggle-receive');
+// routes/web.php
+Route::post('/orders/{order}/mark-received', action: [OrderMasterController::class, 'markReceived'])
+     ->name('orders.mark-received');
 
 });
 
@@ -169,6 +174,11 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
 
 Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::resource('emp-salaries', EmpSalaryController::class)->only(['index','store','update','destroy']);
+    Route::get('/emp-salaries/last-range',        [EmpSalaryController::class, 'lastRange'])->name('emp-salaries.last-range');
+    Route::get('/emp-salaries/quote-attendance',  [EmpSalaryController::class, 'quoteFromAttendance'])->name('emp-salaries.quote-attendance');
+
+    Route::post('/emp-salaries', [EmpSalaryController::class, 'store'])->name('emp-salaries.store');
+
 });
 
 

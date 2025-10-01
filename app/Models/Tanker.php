@@ -12,6 +12,7 @@ class Tanker extends Model
 
     protected $fillable = [
         'tanker_name',
+        'godown_id',
         'tanker_code',
         'slug',       // ← add slug
         'status',
@@ -19,6 +20,16 @@ class Tanker extends Model
         'isDelete',
     ];
 
+    public function godown()
+    {
+        return $this->hasOne( GodownMaster::class, 'godown_id', 'godown_id')
+                    ->where('isDelete', operator: 0);
+    }
+    public function order()
+    {
+        return $this->hasOne( OrderMaster::class, 'tanker_id', 'tanker_id')
+                    ->where('isDelete', operator: 0);
+    }
     protected static function booted()
     {
         // On create: set slug if empty

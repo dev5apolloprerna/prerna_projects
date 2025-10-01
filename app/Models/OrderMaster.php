@@ -19,6 +19,9 @@ class OrderMaster extends Model
         'rent_start_date',
         'advance_amount',
         'rent_amount',
+        'extra_amount',
+        'extra_duration',
+        'extraDM',
         'reference_name',
         'reference_mobile_no',
         'reference_address',
@@ -40,63 +43,79 @@ class OrderMaster extends Model
     public function tanker()   { return $this->belongsTo(Tanker::class, 'tanker_id', 'tanker_id'); }
     public function paymentMaster() { return $this->hasOne(OrderPayment::class, 'order_id', 'order_id'); }
 
-   public function dueSnapshot(?Carbon $asOf = null): array
-    {
-        // 1) Rate: explicit order.rent_amount; fallback to master price
-        $rate = (int) ($this->rent_amount ?? 0);
-        if ($rate <= 0) {
-            $rate = (int) (\App\Models\RentPrice::where('rent_type', $this->rent_type)->value('amount') ?? 0);
-        }
-        $rate = max(0, $rate);
-
-        // 2) DAILY vs MONTHLY
-        $rtype   = strtolower(trim((string) $this->rent_type));
-        $isDaily = preg_match('/\b(daily|per[\s\-_]?day|daywise|day\s*wise|day\-wise)\b/', $rtype) === 1
-                   || in_array($rtype, ['day','per day'], true);
-
-        // 3) Start/End window (freeze at received_at if set; otherwise use "now" or caller's asOf)
-        $start = $this->rent_start_date ? Carbon::parse($this->rent_start_date) : ($asOf ?? now());
-        $end   = $this->received_at      ? Carbon::parse($this->received_at)     : ($asOf ?? now());
-
-        // Guard: if somehow end < start, treat as 1 day
-        $daysInclusive = max(1, $start->copy()->startOfDay()->diffInDays($end->copy()->endOfDay()) + 1);
-
-        // 4) Paid sum (prefer eager withSum alias if loaded)
-        // withSum('paymentMaster','paid_amount') => attribute: payment_master_sum_paid_amount
-        $paidSumAttr = 'payment_master_sum_paid_amount';
-        $paidSum = (int) ($this->{$paidSumAttr} ?? $this->paymentMaster()->sum('paid_amount'));
-
-        // 5) Totals
-        if ($isDaily) {
-            // Base is 1 day; extra is every additional day
-            $base      = $rate;
-            $extraDays = max(0, $daysInclusive - 1);
-            $extra     = $rate * $extraDays;
-            $total     = $rate * $daysInclusive;
-            $daysUsed  = $daysInclusive;
-        } else {
-            // Base covers first 30 days; extra is per-day after 30
-            $base      = $rate;
-            $extraDays = max(0, $daysInclusive - 30);
-            $perDay    = (int) ceil($base / 30); // adjust if you store a separate per-day rate
-            $extra     = $perDay * $extraDays;
-            $total     = $base + $extra;
-            $daysUsed  = $daysInclusive; // optional info
-        }
-
-        $unpaid = max(0, $total - $paidSum);
-
-        return [
-            'rent_basis' => $isDaily ? 'daily' : 'monthly',
-            'base'       => $base,
-            'extra'      => $extra,
-            'total_due'  => $total,
-            'paid_sum'   => $paidSum,
-            'unpaid'     => $unpaid,
-            'extra_days' => $extraDays,
-            'days_used'  => $daysUsed,
-        ];
+ public function dueSnapshot(?Carbon $asOf = null): array
+{
+    // 1) Resolve rate
+    $rate = (int) ($this->rent_amount ?? 0);
+    if ($rate <= 0) {
+        $rate = (int) (RentPrice::where('rent_type', $this->rent_type)->value('amount') ?? 0);
     }
+    $rate = max(0, $rate);
+
+    // 2) DAILY vs MONTHLY
+    $rtype   = strtolower(trim((string) $this->rent_type));
+    $isDaily = preg_match('/\b(daily|per[\s\-_]?day|daywise|day\s*wise|day\-wise)\b/', $rtype) === 1
+               || in_array($rtype, ['day','per day'], true);
+
+    // 3) Date window (INCLUSIVE)
+    $nowOrAsOf = ($asOf ?? now());
+    $startDate = $this->rent_start_date
+        ? Carbon::parse($this->rent_start_date)->startOfDay()
+        : $nowOrAsOf->copy()->startOfDay();
+
+    $endDate = $this->received_at
+        ? Carbon::parse($this->received_at)->endOfDay()
+        : $nowOrAsOf->copy()->endOfDay();
+
+    if ($endDate->lt($startDate)) {
+        $endDate = $startDate->copy()->endOfDay();
+    }
+
+    // Inclusive days: e.g. 24-09 → 30-09 = 7
+    $daysInclusive = $startDate->diffInDays($endDate) + 1;
+
+    // 4) Paid sum
+    $paidSumAttr = 'payment_master_sum_paid_amount';
+    $paidSum = (int) ($this->{$paidSumAttr} ?? $this->paymentMaster()->sum('paid_amount'));
+
+    // 5) Totals
+    if ($isDaily) {
+        // DAILY: charge per inclusive day
+        $daysUsed  = $daysInclusive;           // e.g., 7
+        $base      = $rate;                    // Day 1
+        $extraDays = max(0, $daysUsed - 1);    // e.g., 6
+        $extra     = $rate * $extraDays;       // e.g., 6 * rate
+        $total     = $rate * $daysUsed;        // e.g., 7 * rate
+        $months    = 0;
+    } else {
+        // MONTHLY: no proration — months = ceil(days/30), min 1
+        // e.g., 39 days -> ceil(39/30) = 2 months
+        $months    = max(1, (int) ceil($daysInclusive / 30));
+        $daysUsed  = $daysInclusive;           // info
+        $base      = $rate;                    // first month
+        $extraDays = max(0, $daysInclusive - 30); // info only
+        $extra     = $rate * max(0, $months - 1);
+        $total     = $rate * $months;
+    }
+
+    $unpaid = max(0, $total - $paidSum);
+
+    return [
+        'rent_basis' => $isDaily ? 'daily' : 'monthly',
+        'base'       => $base,
+        'extra'      => $extra,
+        'total_due'  => $total,
+        'paid_sum'   => $paidSum,
+        'unpaid'     => $unpaid,
+        'extra_days' => $extraDays,             // daily: extra chargeable days; monthly: >30d info
+        'days_used'  => $daysUsed,              // always the inclusive calendar-day span
+        'months'     => $isDaily ? 0 : $months, // monthly blocks we charge
+    ];
+}
+
+
+
+
 
         
 }

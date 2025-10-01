@@ -14,6 +14,18 @@
                             <h5 class="card-title">Add Tanker</h5>
                             <form method="POST" action="{{ route('tanker.store') }}">
                                 @csrf
+                                 <div class="mb-3">
+                                    <label class="form-label">Godown<span style="color:red;">*</span></label>
+                                    <select name="godown_id" class="form-control">
+                                        <option value="">Select Godown</option>
+                                        @foreach($godown as $gdn)
+                                            <option value="{{ $gdn->godown_id }}" {{ old('godown_id') == $gdn->godown_id ? 'selected' : '' }}>{{ $gdn->Name }}</option>
+                                        @endforeach
+                                        </select>
+                                    @if($errors->has('tanker_name'))
+                                        <span class="text-danger">{{ $errors->first('godown_id') }}</span>
+                                    @endif
+                                </div>
                                 <div class="mb-3">
                                     <label class="form-label">Tanker Name <span style="color:red;">*</span></label>
                                     <input type="text" name="tanker_name" class="form-control" value="{{ old('tanker_name') }}">
@@ -63,6 +75,7 @@
                                     <thead>
                                         <tr>
                                             <th><input type="checkbox" id="selectAll"></th>
+                                            <th>Godown</th>
                                             <th>Name</th>
                                             <th>Code</th>
                                             <th>Status</th>
@@ -74,6 +87,7 @@
                                         @foreach($tankers as $tanker)
                                             <tr>
                                                 <td><input type="checkbox" name="ids[]" value="{{ $tanker->tanker_id }}"></td>
+                                                <td>{{ $tanker->godown->Name ?? '-' }}</td>
                                                 <td>{{ $tanker->tanker_name }}</td>
                                                 <td>{{ $tanker->tanker_code }}</td>
                                                 <td>{{ $tanker->status == 0 ? 'Inside' : 'Outside' }}</td>
@@ -86,6 +100,7 @@
                                                         data-id="{{ $tanker->tanker_id }}"
                                                         data-name="{{ $tanker->tanker_name }}"
                                                         data-code="{{ $tanker->tanker_code }}"
+                                                        data-godown-id="{{ $tanker->godown_id }}"
                                                         data-status="{{ $tanker->status }}">
                                                     <i class="fas fa-edit"></i>
                                                 </button>
@@ -141,6 +156,7 @@ document.addEventListener('click', function(e){
   const id     = btn.getAttribute('data-id');
   const name   = btn.getAttribute('data-name');
   const code   = btn.getAttribute('data-code');
+  const godown_id   = btn.getAttribute('data-godown-id');
   const status = btn.getAttribute('data-status');
 
   const form = document.getElementById('editTankerForm');
@@ -149,6 +165,7 @@ document.addEventListener('click', function(e){
   document.querySelector('#editTankerForm [name="tanker_id"]').value = id;
   document.querySelector('#editTankerForm [name="tanker_name"]').value = name;
   document.querySelector('#editTankerForm [name="tanker_code"]').value = code;
+  document.querySelector('#editTankerForm [name="godown_id"]').value = godown_id;
   document.querySelector('#editTankerForm [name="status"]').value = status;
 });
 
