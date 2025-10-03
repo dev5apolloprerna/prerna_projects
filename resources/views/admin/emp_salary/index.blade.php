@@ -116,6 +116,16 @@
                         <i class="fa fa-trash"></i>
                       </button>
                     </form>
+                    
+                        <a href="{{ route('attendance.employee', [
+                            'emp'  => $row->emp_id,
+                            'from' => now()->startOfMonth()->toDateString(),
+                            'to'   => now()->endOfMonth()->toDateString(),
+                          ]) }}"
+                       class="btn btn-sm btn-primary"
+                       title="View Attendance">
+                      <i class="fa fa-eye"></i>
+                    </a>
                   </td>
                 </tr>
               @empty

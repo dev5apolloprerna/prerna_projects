@@ -65,7 +65,8 @@
                   <th>Employee Name</th>
                   <th>Mobile</th>
                   <th>Current Status</th>
-                  <th style="min-width:220px">Set Status</th>
+                  <th style="min-width:120px">Set Status</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -98,6 +99,18 @@
                         <option value="H" {{ $pre==='H'?'selected':'' }}>Half Day</option>
                         <option value="A" {{ $pre==='A'?'selected':'' }}>Absent</option>
                       </select>
+                    </td>
+                    <td>
+                        <a href="{{ route('attendance.employee', [
+                            'emp'  => $emp->emp_id,
+                            'from' => now()->startOfMonth()->toDateString(),
+                            'to'   => now()->endOfMonth()->toDateString(),
+                          ]) }}"
+                       class="btn btn-sm btn-primary"
+                       title="View Attendance">
+                      <i class="fa fa-eye"></i>
+                    </a>
+
                     </td>
                   </tr>
                 @empty

@@ -105,4 +105,18 @@ class AttendanceController extends Controller
         return redirect()->route('attendance.index', ['date' => $date])
             ->with('success', 'Attendance saved.');
     }
+     public function employeeAttendance($empId)
+    {
+        $from = request('from', now()->startOfMonth()->toDateString());
+        $to   = request('to',   now()->endOfMonth()->toDateString());
+    
+        $employee = EmployeeMaster::findOrFail($empId);
+    
+        $attendances = EmpAttendance::where('emp_id', $empId)
+            ->whereBetween('attendance_date', [$from, $to])
+            ->orderByDesc('attendance_date')
+            ->paginate(25); // or ->get()
+    
+        return view('admin.attendance.show', compact('employee', 'attendances'));
+    }
 }
