@@ -18,8 +18,6 @@ class GodownMaster extends Model
         'iStatus',
     ];
 
-    
-
     // Hide soft-deleted rows
     public function scopeNotDeleted($q)
     {

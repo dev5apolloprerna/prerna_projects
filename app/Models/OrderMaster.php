@@ -12,8 +12,9 @@ class OrderMaster extends Model
     public $timestamps    = true;
 
     protected $fillable = [
-        'order_type',
         'customer_id',
+        'user_mobile',
+        'user_name',
         'tanker_id',
         'rent_type',
         'rent_start_date',
@@ -26,6 +27,7 @@ class OrderMaster extends Model
         'reference_mobile_no',
         'reference_address',
         'tanker_location',
+        'contract_text',
         'iStatus',
     ];
 

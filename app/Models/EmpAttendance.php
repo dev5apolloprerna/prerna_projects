@@ -11,7 +11,7 @@ class EmpAttendance extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'emp_id', 'attendance_date', 'status', 'enter_by', 'iStatus', 'isDelete'
+        'emp_id', 'attendance_date', 'leave_reason','status', 'enter_by', 'iStatus', 'isDelete'
     ];
      public function employee()
     {

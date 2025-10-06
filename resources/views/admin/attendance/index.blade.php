@@ -13,45 +13,44 @@
           <h5 class="mb-0">Employee Attendance List</h5>
         </div>
 
-        {{-- FILTERS (Status select placed beside Date) --}}
+        {{-- FILTERS (only text search now) --}}
         <div class="card-body">
           <form method="GET" action="{{ route('attendance.index') }}" class="row g-3 align-items-end">
             <div class="col-md-4">
               <label class="form-label small text-muted">Search By Employee Name</label>
-              <input type="text" name="q" value="{{ $q }}" class="form-control" placeholder="Enter employee name / mobile ">
+              <input type="text" name="q" value="{{ $q }}" class="form-control" placeholder="Enter employee name / mobile">
             </div>
 
-            <div class="col-md-2">
-              <label class="form-label small text-muted">Date</label>
-              <input type="date" name="date" value="{{ $date }}" class="form-control" placeholder="dd-mm-yyyy">
-            </div>
-
-            <div class="col-md-2">
-              <label class="form-label small text-muted">Status</label>
-              <select name="filter_status" class="form-select">
-                <option value="">All</option>
-                <option value="P" {{ $filterStatus==='P' ? 'selected':'' }}>Present</option>
-                <option value="H" {{ $filterStatus==='H' ? 'selected':'' }}>Half Day</option>
-                <option value="A" {{ $filterStatus==='A' ? 'selected':'' }}>Absent</option>
-              </select>
-            </div>
-
-            <div class="col-12 d-flex gap-2">
+            <div class="col-4 d-flex gap-2">
               <button class="btn btn-primary">Search</button>
               <a href="{{ route('attendance.index') }}" class="btn btn-danger">Reset</a>
             </div>
           </form>
         </div>
 
-        {{-- TABLE + BULK BUTTONS --}}
-        <form method="POST" action="{{ route('attendance.store') }}">
+        {{-- TABLE + DATE + BULK BUTTONS --}}
+        <form method="POST" action="{{ route('attendance.store') }}" id="attendanceForm">
           @csrf
-          <input type="hidden" name="attendance_date" value="{{ $date }}">
 
-          <div class="px-3 pb-2 d-flex justify-content-end gap-2">
-            <button type="button" class="btn btn-sm btn-danger" id="bulkPresent">Mark as Attended</button>
-            <button type="button" class="btn btn-sm btn-warning" id="bulkHalf">Mark as Half Day</button>
-            <button type="button" class="btn btn-sm btn-secondary" id="bulkAbsent">Mark as Absent</button>
+          {{-- This hidden field is what controller reads for upsert --}}
+          <input type="hidden" name="attendance_date" id="attendance_date_hidden" value="{{ $date }}">
+
+          <div class="px-3 pb-2 d-flex flex-wrap gap-2 align-items-end justify-content-between">
+            <div class="d-flex align-items-end gap-2">
+              <div>
+                <label class="form-label small text-muted mb-1">Attendance Date</label>
+                <input type="date" id="attDate" class="form-control" value="{{ $date }}">
+              </div>
+              <div class="pb-1">
+                <span class="badge bg-light text-dark">Current: {{ \Carbon\Carbon::parse($date)->format('d-M-Y') }}</span>
+              </div>
+            </div>
+
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-sm btn-success" id="bulkPresent">Mark Present</button>
+              <button type="button" class="btn btn-sm btn-warning" id="bulkHalf">Half Day</button>
+              <button type="button" class="btn btn-sm btn-secondary" id="bulkAbsent">Absent</button>
+            </div>
           </div>
 
           <div class="table-responsive">
@@ -64,8 +63,9 @@
                   <th>Sr No</th>
                   <th>Employee Name</th>
                   <th>Mobile</th>
-                  <th>Current Status</th>
+                  <th>Attendance ({{ \Carbon\Carbon::parse($date)->format('d-M-Y') }})</th>
                   <th style="min-width:120px">Set Status</th>
+                  <th style="min-width:120px">Reason</th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -101,16 +101,26 @@
                       </select>
                     </td>
                     <td>
-                        <a href="{{ route('attendance.employee', [
-                            'emp'  => $emp->emp_id,
-                            'from' => now()->startOfMonth()->toDateString(),
-                            'to'   => now()->endOfMonth()->toDateString(),
-                          ]) }}"
-                       class="btn btn-sm btn-primary"
-                       title="View Attendance">
-                      <i class="fa fa-eye"></i>
-                    </a>
-
+                      @php
+                        $prevReason = $existingReason[$emp->emp_id] ?? '';
+                        $needsReason = in_array($pre, ['A','H']);
+                      @endphp
+                      <input type="text"
+                            class="form-control form-control-sm reasonInput"
+                            name="attendance[{{ $emp->emp_id }}][reason]"
+                            value="{{ old('attendance.'.$emp->emp_id.'.reason', $prevReason) }}"
+                            placeholder="Reason (optional)"
+                            {{ $needsReason ? '' : 'disabled' }}>
+                    </td>
+                    </td>
+                    <td>
+                      <a href="{{ route('attendance.employee', [
+                        'emp'  => $emp->emp_id,
+                        'from' => now()->startOfMonth()->toDateString(),
+                        'to'   => now()->endOfMonth()->toDateString(),
+                      ]) }}" class="btn btn-sm btn-primary" title="View Attendance">
+                        <i class="fa fa-eye"></i>
+                      </a>
                     </td>
                   </tr>
                 @empty
@@ -121,9 +131,7 @@
           </div>
 
           <div class="px-3 pb-3 text-end">
-            <button type="submit" class="btn btn-primary">
-               Save Attendance
-            </button>
+            <button type="submit" class="btn btn-primary">Save Attendance</button>
           </div>
         </form>
       </div>
@@ -135,24 +143,68 @@
 
 @section('scripts')
 <script>
-(function(){
+  (function(){
   const master = document.getElementById('masterChk');
   master?.addEventListener('change', ()=> {
     document.querySelectorAll('.rowChk').forEach(c => c.checked = master.checked);
   });
+
+  const toggleReason = (row) => {
+    const sel = row.querySelector('.setSel');
+    const reason = row.querySelector('.reasonInput');
+    if (!sel || !reason) return;
+    const need = sel.value === 'A' || sel.value === 'H';
+    reason.disabled = !need;
+    if (!need) reason.value = reason.value; // keep value but disable when Present
+  };
 
   // Bulk set helpers for checked rows
   const setForChecked = (val) => {
     document.querySelectorAll('.rowChk:checked').forEach(chk => {
       const row = chk.closest('tr');
       const sel = row.querySelector('.setSel');
-      if (sel) sel.value = val;
+      if (sel) {
+        sel.value = val;
+        toggleReason(row);
+      }
     });
   };
 
   document.getElementById('bulkPresent')?.addEventListener('click', ()=> setForChecked('P'));
   document.getElementById('bulkHalf')?.addEventListener('click',    ()=> setForChecked('H'));
   document.getElementById('bulkAbsent')?.addEventListener('click',  ()=> setForChecked('A'));
+
+  // Per-row change handling
+  document.querySelectorAll('.setSel').forEach(sel => {
+    toggleReason(sel.closest('tr'));
+    sel.addEventListener('change', () => toggleReason(sel.closest('tr')));
+  });
+
+const attDate = document.getElementById('attDate');
+  const hidden  = document.getElementById('attendance_date_hidden');
+  const form    = document.getElementById('attendanceForm');
+
+  // When date changes -> reload page with ?date=...
+  attDate?.addEventListener('change', () => {
+    const v = attDate.value;
+    if (!v) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('date', v);      // keep other params (like q)
+    window.location.href = url.toString();
+  });
+
+  // Ensure POST carries the same date
+  form?.addEventListener('submit', (e) => {
+    if (attDate && hidden) {
+      hidden.value = attDate.value || hidden.value;
+    }
+    if (!hidden.value) {
+      e.preventDefault();
+      alert('Please select a date.');
+    }
+  });
 })();
+
+  
 </script>
 @endsection

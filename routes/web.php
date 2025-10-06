@@ -144,23 +144,28 @@ Route::prefix('admin')->group(function () {
     Route::post('orders/bulk-delete',  [OrderMasterController::class, 'bulkDelete'])->name('orders.bulk-delete');
     Route::post('orders/change-status/{id}', [OrderMasterController::class, 'changeStatus'])->name('orders.change-status');
     Route::get('orders/{id}/toggle-receive', [OrderMasterController::class, 'toggleReceive'])->name('orders.toggle-receive');
-// routes/web.php
-Route::post('/orders/{order}/mark-received', action: [OrderMasterController::class, 'markReceived'])
-     ->name('orders.mark-received');
+    Route::post('/orders/{order}/mark-received', action: [OrderMasterController::class, 'markReceived'])
+        ->name('orders.mark-received');
+    Route::get('/orders/{id}/orders-summary', [OrderMasterController::class, 'customerOrdersSummary'])
+        ->name('orders.orders-summary');
 
-});
+
+    });
 
 Route::post('payments/store', [PaymentController::class, 'store'])->name('payments.store');
 Route::get('orders/{order}/payments/history', [PaymentController::class, 'history'])
         ->name('payments.history');
 
-Route::middleware(['auth']) // add other middleware if you use them
+
+Route::middleware(['auth'])
     ->prefix('admin')
     ->group(function () {
-        // /admin/rent-prices  → names: rent-prices.index, rent-prices.store, etc.
-        Route::resource('rent-prices', RentPriceController::class)->only([
-            'index', 'store', 'update', 'destroy'
-        ]);
+        Route::resource('rent-prices', RentPriceController::class)
+             ->only(['index','store','update','destroy']);
+
+        // point to a method, and use correct ->name('...')
+        Route::get('ajax/rent-price', [RentPriceController::class, 'getRentPrice'])
+             ->name('ajax.rent-price');
     });
 
 

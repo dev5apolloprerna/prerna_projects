@@ -65,8 +65,9 @@ class OrderMasterController extends Controller
     {
         $customers = Customer::where('iStatus', 1)->orderBy('customer_name', 'asc')->pluck('customer_name', 'customer_id');
         $tankers   = Tanker::where(['iStatus'=> 1,'status'=>0])->orderBy('tanker_code', 'asc')->pluck('tanker_code', 'tanker_id');
+        $renttype = RentPrice::select('rent_price_id','rent_type','amount')->orderBy('rent_type')->get();
 
-        return view('admin.orders.add-edit', compact('customers', 'tankers'));
+        return view('admin.orders.add-edit', compact('customers', 'tankers','renttype'));
     }
 
     // STORE
@@ -88,8 +89,9 @@ class OrderMasterController extends Controller
         ]);
 
         $order = OrderMaster::create([
-            'order_type'          => $request->order_type,
             'customer_id'         => $request->customer_id,
+            'user_name'         => $request->user_name,
+            'user_mobile'         => $request->user_mobile,
             'tanker_id'           => $request->tanker_id,
             'rent_type'           => $request->rent_type,
             'rent_start_date'     => $request->rent_start_date,
@@ -99,6 +101,7 @@ class OrderMasterController extends Controller
             'reference_mobile_no' => $request->reference_mobile_no,
             'reference_address'   => $request->reference_address,
             'tanker_location'     => $request->tanker_location,
+            'contract_text'       => $request->contract_text,
             'iStatus'             => (int)$request->iStatus,
         ]);
 
@@ -150,7 +153,6 @@ class OrderMasterController extends Controller
 
 
         $request->validate([
-            'order_type'           => ['required','string','max:100', Rule::in(['monthly','quick','daily'])],
             'customer_id'          => 'required|integer',
             'tanker_id'            => 'required|integer',
             'rent_type'            => ['required','string','max:20', Rule::in(['daily','monthly'])],
@@ -166,8 +168,9 @@ class OrderMasterController extends Controller
         ]);
 
         $order->update([
-            'order_type'          => $request->order_type,
             'customer_id'         => $request->customer_id,
+            'user_name'         => $request->user_name,
+            'user_mobile'         => $request->user_mobile,
             'tanker_id'           => $request->tanker_id,
             'rent_type'           => $request->rent_type,
             'rent_start_date'     => $request->rent_start_date,
@@ -177,6 +180,7 @@ class OrderMasterController extends Controller
             'reference_mobile_no' => $request->reference_mobile_no,
             'reference_address'   => $request->reference_address,
             'tanker_location'     => $request->tanker_location,
+            'contract_text'     => $request->contract_text,
             'iStatus'             => (int)$request->iStatus,
         ]);
 
@@ -312,6 +316,63 @@ class OrderMasterController extends Controller
     {
         return $order->dueSnapshot(); // delegate to the model method above
     }
+    public function customerOrdersSummary($customerId)
+{
+    $customer = Customer::findOrFail($customerId);
+
+    $orders = OrderMaster::with(['tanker'])
+        ->where('customer_id', $customerId)
+        ->where('isDelete', 0)
+        ->latest('rent_start_date')
+        ->get();
+
+    $orderIds = $orders->pluck('order_id')->all();
+    $payments = collect();
+    if ($orderIds) {
+        $payments = \DB::table('order_payment_master')
+            ->select('payment_id','order_id','paid_amount','created_at')
+            ->whereIn('order_id', $orderIds)
+            ->where('isDelete', 0)
+            ->orderBy('created_at','asc')
+            ->get()
+            ->groupBy('order_id');
+    }
+
+    $totals = ['orders_count'=>0, 'total_due'=>0, 'paid'=>0, 'unpaid'=>0];
+    $totals['orders_count'] = $orders->count();
+
+    $dailyCount = 0; $monthlyCount = 0;
+    $receivedCount = 0; $notReceivedCount = 0;
+
+    foreach ($orders as $o) {
+        $s = $o->dueSnapshot();
+        $o->snap = $s;
+
+        $totals['total_due'] += (float) ($s['total_due'] ?? 0);
+        $totals['paid']      += (float) ($s['paid_sum']  ?? 0);
+        $totals['unpaid']    += (float) ($s['unpaid']    ?? 0);
+
+        if (($s['rent_basis'] ?? '') === 'daily') $dailyCount++; else $monthlyCount++;
+        if ((int)$o->isReceive === 1) $notReceivedCount++; else $receivedCount++;
+    }
+
+    $meta = [
+        'daily_count'       => $dailyCount,
+        'monthly_count'     => $monthlyCount,
+        'received_count'    => $receivedCount,     // isReceive == 0
+        'not_received_count'=> $notReceivedCount,  // isReceive == 1
+    ];
+
+    return view('admin.orders.customer_orders_summary', [
+        'customer' => $customer,
+        'orders'   => $orders,
+        'payments' => $payments,
+        'totals'   => $totals,
+        'meta'     => $meta,
+    ]);
+}
+
+
 
 
 }

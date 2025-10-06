@@ -52,15 +52,11 @@
                
                 <div class="col-md-2">
                     <div class="text-end mt-2">
-                    <span class="badge bg-success me-2">Total Paid: {{ $totalPaid }}</span>
-                    <span class="badge bg-danger me-2">Total Unpaid: {{ $totalUnpaid }} </span>
+                    <span class="badge bg-success me-2" style="font-size: small;">Total Paid: {{ $totalPaid }}</span>
+                    <span class="badge bg-danger me-2" style="font-size: small;">Total Unpaid: {{ $totalUnpaid }} </span>
                     </div>
                 </div>
-                
-                
             </div>
-
-            
                     <div class="table-responsive">
                         <table class="table align-middle table-striped">
                             <thead>
@@ -102,7 +98,17 @@
                                     <tr data-id="{{ $o->order_id }}">
                                         <td><input type="checkbox" class="row-check" value="{{ $o->order_id }}"></td>
                                         <td>{{ ucfirst($o->order_type) }}</td>
-                                        <td>{{ $o->customer->customer_name ?? $o->customer_id }}</td>
+                                        <td>
+                                          <a href="javascript:void(0)"
+                                            class="text-decoration-underline"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#customerOrdersModal"
+                                            data-customer-id="{{ $o->customer_id }}">
+                                            {{ $o->customer->customer_name ?? $o->customer_id }}
+                                          </a>
+                                        </td>
+
+                                        <!-- <td>{{ $o->customer->customer_name ?? $o->customer_id }}</td> -->
                                         <td>{{ $o->tanker->tanker_code ?? '-' }}</td>
                                         <td>{{ $o->tanker->tanker_name ?? '-' }}</td>
                                         <!-- <td>{{ ucfirst($o->rent_type) }}</td> -->
@@ -208,6 +214,31 @@
         </div>
     </div>
 </div>
+
+{{-- Customer Orders & Payments Modal --}}
+<div class="modal fade" id="customerOrdersModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">Customer Orders & Payments</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body" id="customerOrdersBody">
+        <div class="text-center py-5">
+          Loading customer orders…
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-light" data-bs-dismiss="modal">Close</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 
 {{-- Tanker Details Modal --}}
 <div class="modal fade" id="tankerDetailsModal" tabindex="-1" aria-hidden="true">
@@ -457,6 +488,23 @@ document.getElementById('paymentModal').addEventListener('show.bs.modal', functi
       .then(html => { body.innerHTML = html; })
       .catch(() => { body.innerHTML = '<div class="alert alert-danger">Unable to load tanker details.</div>'; });
   });
+
+
+document.getElementById('customerOrdersModal').addEventListener('show.bs.modal', function (event) {
+  const btn = event.relatedTarget;
+  const customerId = btn.getAttribute('data-customer-id');
+  const body = document.getElementById('customerOrdersBody');
+
+  body.innerHTML = '<div class="text-center py-5">Loading customer orders…</div>';
+
+  let url = "{{ route('orders.orders-summary', ':id') }}".replace(':id', customerId);
+
+  fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }})
+    .then(r => r.text())
+    .then(html => body.innerHTML = html)
+    .catch(() => body.innerHTML = '<div class="alert alert-danger">Unable to load customer orders.</div>');
+});
+
 
 </script>
 @endsection
