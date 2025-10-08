@@ -51,6 +51,7 @@
                                     <div class="col-md-4 mb-4">
                                         <label class="form-label">Rent Type <span style="color:red;">*</span></label>
                                         <select class="form-select" name="rent_type" id="rent_type">
+                                            @php $ot = old('rent_type', $order->rent_type ?? ''); @endphp
                                             <option id="rent_type" value="" >-- Select --</option>
                                             @foreach($renttype as $r)
                                                 <option value="{{ $r->rent_price_id }}" {{ (string)old('rent_price_id', $order->rent_type ?? '') === (string)$r->rent_price_id ? 'selected' : '' }}>
@@ -192,6 +193,15 @@
                                         @endif
                                     </div>
 
+
+                                <div class="col-md-4 mb-4">
+                                        <label class="form-label">Contract <span style="color:red;">*</span></label>
+                                        <textarea  class="form-control" name="contract_text">{{ old('contract_text', $order->contract_text ?? '') }}</textarea>
+                                        @if($errors->has('contract_text'))
+                                            <span class="text-danger">{{ $errors->first('contract_text') }}</span>
+                                        @endif
+                                    </div>
+
                                     {{-- Status --}}
                                     <div class="col-md-4 mb-4">
                                         <label class="form-label">Status <span style="color:red;">*</span></label>
@@ -203,6 +213,7 @@
                                             <span class="text-danger">{{ $errors->first('iStatus') }}</span>
                                         @endif
                                     </div>
+
                                 </div>
 
                                 <div class="mt-2">

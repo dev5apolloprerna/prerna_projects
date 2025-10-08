@@ -141,6 +141,7 @@
                 @csrf
 
                 <div class="table-responsive">
+                   <button type="submit" class="btn btn-danger btn-sm mb-3" onclick="return confirm('Delete selected expenses?')">Bulk Delete</button>
                   <table class="table table-striped align-middle">
                     <thead>
                     <tr>
@@ -193,8 +194,7 @@
                 </div>
 
                 <div class="d-flex justify-content-between align-items-center mt-2">
-                  <button type="submit" class="btn btn-danger"
-                          onclick="return confirm('Delete selected expenses?')">Bulk Delete</button>
+                 
                   <div>{{ $expences->links() }}</div>
                 </div>
 

@@ -279,6 +279,11 @@
       </div>
 
       <div class="modal-body">
+        <div class="mb-2">
+          <label class="form-label">Received Date <span class="text-danger">*</span></label>
+          <input type="date" name="received_at" id="received_at" class="form-control" value="{{ old('received_at', date('Y-m-d')) }}">
+        </div>
+
         <div class="mb-3">
           <label class="form-label">Select Godown <span class="text-danger">*</span></label>
           <select name="godown_id" class="form-select" required>
@@ -323,14 +328,30 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
 
-      <div class="modal-body">
+      <div class="modal-body row">
 
-        <div class="mb-2">
+        <div class="col-6 mb-2">
+          <label class="form-label">Payment Date <span class="text-danger">*</span></label>
+          <input type="date" name="payment_date" id="payment_date" class="form-control" value="{{ old('payment_date', date('Y-m-d')) }}">
+        </div>
+
+        <div class="col-6 mb-2">
+          <label class="form-label">Select Received BY <span class="text-danger">*</span></label>
+          <select name="payment_received_by" class="form-select" required>
+            <option value="">-- Choose --</option>
+            @foreach($paymentUser as $p)
+              <option value="{{ $p->received_id }}">{{ $p->name }}</option>
+            @endforeach
+          </select>
+        </div>
+        
+
+        <div class="col-6 mb-2">
           <label class="form-label">Due Amount</label>
           <input type="text" id="pm_unpaid" class="form-control" readonly>
         </div>
 
-        <div class="mb-2">
+        <div class="col-6 mb-2">
           <label class="form-label">Paid Amount <span class="text-danger">*</span></label>
           <input type="number" min="1" step="1" name="paid_amount" class="form-control" required>
           <small class="text-muted">Cannot exceed current unpaid.</small>
@@ -390,6 +411,7 @@ document.getElementById('receivedModal').addEventListener('show.bs.modal', funct
     if (confirm(msg)) this.submit();
   });
 });
+
 $(function(){
     const CSRF='{{ csrf_token() }}';
 

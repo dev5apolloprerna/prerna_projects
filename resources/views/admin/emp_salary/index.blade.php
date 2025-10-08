@@ -186,7 +186,20 @@
           <input type="number" min="0" name="salary_amount" id="salary_amount"
                  class="form-control" value="{{ old('salary_amount') }}" placeholder="Auto-calculated…" required>
         </div>
-        <div class="small text-muted" id="amount_hint"></div>
+        <div class="large text-primary" id="amount_hint"></div>
+
+      <div class="row g-2">
+          <div class="col-md-6">
+            <label class="form-label"> Mobile Recharge </label>
+            <input type="text" name="mobile_recharge" id="mobile_recharge" class="form-control"
+                   value="{{ old('mobile_recharge') }}" placeholder="Amount">
+          </div>
+          <div class="col-md-6">
+          <label class="form-label">Withdrawal Deduction (₹)</label>
+          <input type="number" min="0" name="withdrawal_deducted"  id="withdrawal_amount" class="form-control" value="{{ old('withdrawal_amount') }}">
+          <small class="text-muted">Auto-deducted from active employee withdrawals.</small>
+          </div>
+        </div>
 
         <div class="mt-3">
           <label class="form-label">Status</label>
@@ -219,6 +232,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const fromEl = document.getElementById('salary_date'); // FROM
   const toEl   = document.getElementById('last_date');   // TO
   const amtEl  = document.getElementById('salary_amount');
+  const deduct  = document.getElementById('withdrawal_amount');
   const hint   = document.getElementById('amount_hint');
   const status = document.getElementById('iStatus');
 
@@ -248,6 +262,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const data = await res.json();
     if (data.ok) {
       amtEl.value = data.amount;
+      deduct.value = data.emi_amount;
       hint.textContent = `${data.note} (P=${data.counts.P ?? 0}, H=${data.counts.H ?? 0}, A=${data.counts.A ?? 0})`;
     } else {
       hint.textContent = '';

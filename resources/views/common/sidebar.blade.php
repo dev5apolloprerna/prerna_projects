@@ -58,6 +58,14 @@ $roleid = Auth::guard('web_employees')->user()->role_id;
                                   </a>
                                 </li>
 
+                                <li class="nav-item">
+                                        <a class="nav-link {{ request()->is('admin/payment-received-user*') ? 'active' : '' }}" 
+                                           href="{{ route('payment-received-user.index') }}">
+                                            <i class="fas fa-user-check me-2"></i>
+                                            <span>Payment Received By</span>
+                                        </a>
+                                    </li>
+
                             </ul>
                         </div>
                     </li>
@@ -67,6 +75,9 @@ $roleid = Auth::guard('web_employees')->user()->role_id;
                                 <i class="fas fa-users"></i> <span>Customer</span>
                             </a>
                         </li>
+                        {{-- ======== Payment Received User ======== --}}
+                        
+
                         <li class="nav-item">
                         <a class="nav-link" href="#sidebarMore" data-bs-toggle="collapse" role="button"
                             aria-expanded="true" aria-controls="sidebarMore">
@@ -106,12 +117,42 @@ $roleid = Auth::guard('web_employees')->user()->role_id;
                                 <i class="nav-icon fas fa-file-invoice"></i>Orders
                             </a>
                         </li>
-                       
-                        
+                        <li class="nav-item">
+                          <a href="{{ route('employee-extra-withdrawal.index') }}"
+                             class="nav-link {{ request()->is('admin/employee-extra-withdrawal*') ? 'active' : '' }}">
+                             <i class="fas fa-hand-holding-usd me-2"></i>
+                             <span>Employee Withdrawals</span>
+                          </a>
+                        </li>
 
 
+                        <li class="nav-item">
+                        <a class="nav-link" href="#sidebarMore" data-bs-toggle="collapse" role="button"
+                            aria-expanded="true" aria-controls="sidebarMore">
+                            <i class="fa fa-list text-white"></i>Reports </a>
+                        <div class="menu-dropdown collapse show" id="sidebarMore" style="">
+                            <ul class="nav nav-sm flex-column">
+
+                            <li class="nav-item">
+                              <a href="{{ route('admin.expence-report.index') }}" 
+                                 class="nav-link {{ request()->is('admin/expence-report*') ? 'active' : '' }}">
+                                 <i class="fas fa-file-invoice-dollar me-2"></i>
+                                 <span>Expense Report</span>
+                              </a>
+                            </li>
+
+                            <li class="nav-item">
+                              <a href="{{ route('admin.attendance-report.index') }}" 
+                                 class="nav-link {{ request()->is('admin/attendance-report*') ? 'active' : '' }}">
+                                <i class="fas fa-user-clock me-2"></i>
+                                <span>Attendance Report</span>
+                              </a>
+                            </li>
 
 
+                        </ul>
+                    </div>
+                </li>
 
 
                 @endif

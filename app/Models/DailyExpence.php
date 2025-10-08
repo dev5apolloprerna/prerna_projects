@@ -28,6 +28,11 @@ class DailyExpence extends Model
     {
         return $q->where('isDelete', 0);
     }
+    public function scopeNotDeleted($q)
+    {
+        return $q->where('isDelete', 0);
+    }
+    
        public function types() { return $this->belongsTo(DailyExpenceType::class, 'expence_type_id', 'expence_type_id'); }
 
 }

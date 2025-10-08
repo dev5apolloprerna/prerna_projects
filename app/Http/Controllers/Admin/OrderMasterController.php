@@ -9,6 +9,7 @@ use App\Models\Tanker;
 use App\Models\RentPrice;
 use App\Models\OrderPayment;
 use App\Models\GodownMaster;
+use App\Models\PaymentReceivedUser;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
@@ -44,8 +45,24 @@ class OrderMasterController extends Controller
             $q->where('rent_type', $request->rent_type);
         }
 
+           $q->where(function($sub) {
+                $sub->where('isReceive', 1)
+                    ->orWhereHas('paymentMaster', function($pm) {
+                        // unpaid_amount > 0 means still pending, so keep those
+                        $pm->where('unpaid_amount', '>', 0);
+                    });
+            })
+            // exclude isReceive=0 with unpaid=0
+            ->whereDoesntHave('paymentMaster', function($pm) {
+                $pm->where('unpaid_amount', '=', 0)
+                   ->whereHas('order', function($order) {
+                       $order->where('isReceive', 0);
+                   });
+            });
 
-        $orders = $q->orderByDesc('order_id')->paginate(10)->withQueryString();
+     $orders = $q->orderByDesc('order_id')->paginate(10)->withQueryString();
+
+
         $totalPaid = 0;
         $totalUnpaid = 0;
         
@@ -56,8 +73,9 @@ class OrderMasterController extends Controller
         }
             
         $godowns =GodownMaster::select('godown_id','Name')->orderBy('Name')->get();
+        $paymentUser =PaymentReceivedUser::select('received_id','name')->orderBy('name')->get();
 
-        return view('admin.orders.index', compact('orders','totalPaid','totalUnpaid','godowns'));
+        return view('admin.orders.index', compact('orders','totalPaid','totalUnpaid','godowns','paymentUser'));
     }
 
     // CREATE
@@ -74,10 +92,9 @@ class OrderMasterController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'order_type'           => ['required','string','max:100', Rule::in(['monthly','quick','daily'])],
             'customer_id'          => 'required|integer',
             'tanker_id'            => 'required|integer',
-            'rent_type'            => ['required','string','max:20', Rule::in(['daily','monthly'])],
+            'rent_type'            => ['required','int'],
             'rent_start_date'      => 'required|date',
             'advance_amount'       => 'required|integer',
             'rent_amount'          => 'required|integer',
@@ -140,8 +157,9 @@ class OrderMasterController extends Controller
         $order = OrderMaster::notDeleted()->findOrFail($id);
         $customers = Customer::where('iStatus', 1)->orderBy('customer_name', 'asc')->pluck('customer_name', 'customer_id');
         $tankers   = Tanker::where(['iStatus'=> 1])->orderBy('tanker_code', 'asc')->pluck('tanker_code', 'tanker_id');
+$renttype = RentPrice::select('rent_price_id','rent_type','amount')->orderBy('rent_type')->get();
 
-        return view('admin.orders.add-edit', compact('order','customers','tankers'));
+        return view('admin.orders.add-edit', compact('order','customers','tankers','renttype'));
     }
 
     // UPDATE
@@ -155,7 +173,7 @@ class OrderMasterController extends Controller
         $request->validate([
             'customer_id'          => 'required|integer',
             'tanker_id'            => 'required|integer',
-            'rent_type'            => ['required','string','max:20', Rule::in(['daily','monthly'])],
+            'rent_type'            => ['required','int'],
             'rent_start_date'      => 'required|date',
             'advance_amount'       => 'required|integer',
             'rent_amount'          => 'required|integer',
@@ -291,6 +309,7 @@ class OrderMasterController extends Controller
         $order->extra_amount = intval(preg_replace('/[^\d]/', '', (string) $request->extra_amount));
         $order->extra_duration = $request->extra_day ? (int)$request->extra_day : null;
         $order->extraDM = $request->duration_text ?? null;
+        $order->received_at = $request->received_at ?? null;
         $order->isReceive = 0;                   // 0 = Received (as per your current logic/UI)
         $order->save();
 
