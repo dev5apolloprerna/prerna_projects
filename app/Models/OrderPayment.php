@@ -10,12 +10,11 @@ class OrderPayment extends Model
     public $timestamps = true; // uses created_at, updated_at
 
     protected $fillable = [
-        'customer_id',
-        'order_id',
-        'total_amount',
-        'paid_amount',
-        'unpaid_amount',
-        'iStatus',
-        'isDelete',
+        'customer_id', 'order_id', 'total_amount', 'paid_amount', 'unpaid_amount', 'payment_received_by', 'payment_date' 
     ];
+public function order()
+{
+    return $this->belongsTo(OrderMaster::class, 'order_id', 'order_id');
+}
+
 }

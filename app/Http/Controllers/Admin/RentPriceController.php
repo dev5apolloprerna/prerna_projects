@@ -62,4 +62,22 @@ class RentPriceController extends Controller
             ->route('rent-prices.index')
             ->with('success', 'Rent price deleted.');
     }
+    public function getRentPrice(Request $request)
+    {
+        $rentType = (string) $request->query('rent_type', '');
+        if ($rentType === '') {
+            return response()->json(['ok' => false, 'message' => 'rent_type required'], 422);
+        }
+
+        $amount = RentPrice::where('iStatus',1)
+                  ->where('isDelete',0)
+                  ->where('rent_type',$rentType)
+                  ->value('amount');
+
+        if ($amount === null) {
+            return response()->json(['ok' => false, 'message' => 'No price found'], 404);
+        }
+
+        return response()->json(['ok' => true, 'amount' => (float)$amount]);
+    }
 }

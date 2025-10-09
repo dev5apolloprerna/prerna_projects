@@ -9,6 +9,7 @@ use App\Models\Tanker;
 use App\Models\RentPrice;
 use App\Models\OrderPayment;
 use App\Models\GodownMaster;
+use App\Models\PaymentReceivedUser;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
@@ -44,8 +45,24 @@ class OrderMasterController extends Controller
             $q->where('rent_type', $request->rent_type);
         }
 
+           $q->where(function($sub) {
+                $sub->where('isReceive', 1)
+                    ->orWhereHas('paymentMaster', function($pm) {
+                        // unpaid_amount > 0 means still pending, so keep those
+                        $pm->where('unpaid_amount', '>', 0);
+                    });
+            })
+            // exclude isReceive=0 with unpaid=0
+            ->whereDoesntHave('paymentMaster', function($pm) {
+                $pm->where('unpaid_amount', '=', 0)
+                   ->whereHas('order', function($order) {
+                       $order->where('isReceive', 0);
+                   });
+            });
 
-        $orders = $q->orderByDesc('order_id')->paginate(10)->withQueryString();
+     $orders = $q->orderByDesc('order_id')->paginate(10)->withQueryString();
+
+
         $totalPaid = 0;
         $totalUnpaid = 0;
         
@@ -56,8 +73,9 @@ class OrderMasterController extends Controller
         }
             
         $godowns =GodownMaster::select('godown_id','Name')->orderBy('Name')->get();
+        $paymentUser =PaymentReceivedUser::select('received_id','name')->orderBy('name')->get();
 
-        return view('admin.orders.index', compact('orders','totalPaid','totalUnpaid','godowns'));
+        return view('admin.orders.index', compact('orders','totalPaid','totalUnpaid','godowns','paymentUser'));
     }
 
     // CREATE
@@ -65,18 +83,18 @@ class OrderMasterController extends Controller
     {
         $customers = Customer::where('iStatus', 1)->orderBy('customer_name', 'asc')->pluck('customer_name', 'customer_id');
         $tankers   = Tanker::where(['iStatus'=> 1,'status'=>0])->orderBy('tanker_code', 'asc')->pluck('tanker_code', 'tanker_id');
+        $renttype = RentPrice::select('rent_price_id','rent_type','amount')->orderBy('rent_type')->get();
 
-        return view('admin.orders.add-edit', compact('customers', 'tankers'));
+        return view('admin.orders.add-edit', compact('customers', 'tankers','renttype'));
     }
 
     // STORE
     public function store(Request $request)
     {
         $request->validate([
-            'order_type'           => ['required','string','max:100', Rule::in(['monthly','quick','daily'])],
             'customer_id'          => 'required|integer',
             'tanker_id'            => 'required|integer',
-            'rent_type'            => ['required','string','max:20', Rule::in(['daily','monthly'])],
+            'rent_type'            => ['required','int'],
             'rent_start_date'      => 'required|date',
             'advance_amount'       => 'required|integer',
             'rent_amount'          => 'required|integer',
@@ -88,8 +106,9 @@ class OrderMasterController extends Controller
         ]);
 
         $order = OrderMaster::create([
-            'order_type'          => $request->order_type,
             'customer_id'         => $request->customer_id,
+            'user_name'         => $request->user_name,
+            'user_mobile'         => $request->user_mobile,
             'tanker_id'           => $request->tanker_id,
             'rent_type'           => $request->rent_type,
             'rent_start_date'     => $request->rent_start_date,
@@ -99,6 +118,7 @@ class OrderMasterController extends Controller
             'reference_mobile_no' => $request->reference_mobile_no,
             'reference_address'   => $request->reference_address,
             'tanker_location'     => $request->tanker_location,
+            'contract_text'       => $request->contract_text,
             'iStatus'             => (int)$request->iStatus,
         ]);
 
@@ -137,8 +157,9 @@ class OrderMasterController extends Controller
         $order = OrderMaster::notDeleted()->findOrFail($id);
         $customers = Customer::where('iStatus', 1)->orderBy('customer_name', 'asc')->pluck('customer_name', 'customer_id');
         $tankers   = Tanker::where(['iStatus'=> 1])->orderBy('tanker_code', 'asc')->pluck('tanker_code', 'tanker_id');
+$renttype = RentPrice::select('rent_price_id','rent_type','amount')->orderBy('rent_type')->get();
 
-        return view('admin.orders.add-edit', compact('order','customers','tankers'));
+        return view('admin.orders.add-edit', compact('order','customers','tankers','renttype'));
     }
 
     // UPDATE
@@ -150,10 +171,9 @@ class OrderMasterController extends Controller
 
 
         $request->validate([
-            'order_type'           => ['required','string','max:100', Rule::in(['monthly','quick','daily'])],
             'customer_id'          => 'required|integer',
             'tanker_id'            => 'required|integer',
-            'rent_type'            => ['required','string','max:20', Rule::in(['daily','monthly'])],
+            'rent_type'            => ['required','int'],
             'rent_start_date'      => 'required|date',
             'advance_amount'       => 'required|integer',
             'rent_amount'          => 'required|integer',
@@ -166,8 +186,9 @@ class OrderMasterController extends Controller
         ]);
 
         $order->update([
-            'order_type'          => $request->order_type,
             'customer_id'         => $request->customer_id,
+            'user_name'         => $request->user_name,
+            'user_mobile'         => $request->user_mobile,
             'tanker_id'           => $request->tanker_id,
             'rent_type'           => $request->rent_type,
             'rent_start_date'     => $request->rent_start_date,
@@ -177,6 +198,7 @@ class OrderMasterController extends Controller
             'reference_mobile_no' => $request->reference_mobile_no,
             'reference_address'   => $request->reference_address,
             'tanker_location'     => $request->tanker_location,
+            'contract_text'     => $request->contract_text,
             'iStatus'             => (int)$request->iStatus,
         ]);
 
@@ -287,6 +309,7 @@ class OrderMasterController extends Controller
         $order->extra_amount = intval(preg_replace('/[^\d]/', '', (string) $request->extra_amount));
         $order->extra_duration = $request->extra_day ? (int)$request->extra_day : null;
         $order->extraDM = $request->duration_text ?? null;
+        $order->received_at = $request->received_at ?? null;
         $order->isReceive = 0;                   // 0 = Received (as per your current logic/UI)
         $order->save();
 
@@ -312,6 +335,63 @@ class OrderMasterController extends Controller
     {
         return $order->dueSnapshot(); // delegate to the model method above
     }
+    public function customerOrdersSummary($customerId)
+{
+    $customer = Customer::findOrFail($customerId);
+
+    $orders = OrderMaster::with(['tanker'])
+        ->where('customer_id', $customerId)
+        ->where('isDelete', 0)
+        ->latest('rent_start_date')
+        ->get();
+
+    $orderIds = $orders->pluck('order_id')->all();
+    $payments = collect();
+    if ($orderIds) {
+        $payments = \DB::table('order_payment_master')
+            ->select('payment_id','order_id','paid_amount','created_at')
+            ->whereIn('order_id', $orderIds)
+            ->where('isDelete', 0)
+            ->orderBy('created_at','asc')
+            ->get()
+            ->groupBy('order_id');
+    }
+
+    $totals = ['orders_count'=>0, 'total_due'=>0, 'paid'=>0, 'unpaid'=>0];
+    $totals['orders_count'] = $orders->count();
+
+    $dailyCount = 0; $monthlyCount = 0;
+    $receivedCount = 0; $notReceivedCount = 0;
+
+    foreach ($orders as $o) {
+        $s = $o->dueSnapshot();
+        $o->snap = $s;
+
+        $totals['total_due'] += (float) ($s['total_due'] ?? 0);
+        $totals['paid']      += (float) ($s['paid_sum']  ?? 0);
+        $totals['unpaid']    += (float) ($s['unpaid']    ?? 0);
+
+        if (($s['rent_basis'] ?? '') === 'daily') $dailyCount++; else $monthlyCount++;
+        if ((int)$o->isReceive === 1) $notReceivedCount++; else $receivedCount++;
+    }
+
+    $meta = [
+        'daily_count'       => $dailyCount,
+        'monthly_count'     => $monthlyCount,
+        'received_count'    => $receivedCount,     // isReceive == 0
+        'not_received_count'=> $notReceivedCount,  // isReceive == 1
+    ];
+
+    return view('admin.orders.customer_orders_summary', [
+        'customer' => $customer,
+        'orders'   => $orders,
+        'payments' => $payments,
+        'totals'   => $totals,
+        'meta'     => $meta,
+    ]);
+}
+
+
 
 
 }

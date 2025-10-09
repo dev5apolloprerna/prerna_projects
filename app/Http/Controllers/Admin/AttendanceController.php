@@ -1,5 +1,4 @@
 <?php
-// app/Http/Controllers/Admin/AttendanceController.php
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
@@ -8,6 +7,8 @@ use App\Models\EmployeeMaster;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+
 use Carbon\Carbon;
 
 class AttendanceController extends Controller
@@ -41,10 +42,14 @@ class AttendanceController extends Controller
         $employees = $employeesQ->get(['emp_id','name','mobile']);
 
         // Existing attendance (to preselect statuses in UI)
-        $existing = \App\Models\EmpAttendance::where('attendance_date', $date)
-                    ->pluck('status', 'emp_id');  // [emp_id => 'P'|'A'|'H']
 
-        return view('admin.attendance.index', compact('employees','date','existing','q','filterStatus'));
+$existing       = EmpAttendance::whereDate('attendance_date', $date)->pluck('status', 'emp_id');
+$existingReason = EmpAttendance::whereDate('attendance_date', $date)->pluck('leave_reason', 'emp_id');
+// pass $existingReason to the view
+return view('admin.attendance.index', compact('employees','existing','existingReason','q','date','filterStatus'));
+
+
+        //return view('admin.attendance.index', compact('employees','date','existing','q','filterStatus'));
     }
     public function names(Request $request)
     {
@@ -68,44 +73,56 @@ class AttendanceController extends Controller
         return response()->json(['title' => $title, 'employees' => $list]);
     }
     public function store(Request $request)
-    {
-        $data = $request->validate([
-            'attendance_date' => ['required','date'],
-            'selected'        => ['array'], // optional (if none checked, we’ll use keys from attendance[])
-            'attendance'      => ['array'], // attendance[empId][status]
-        ]);
+{
+    $data = $request->validate([
+        'attendance_date' => ['required','date'],
+        'selected'        => ['array'], // optional
+        'attendance'      => ['array'], // attendance[empId][status], attendance[empId][reason]
+        // optional: validate each reason
+        // 'attendance.*.reason' => ['nullable','string','max:255'],
+    ]);
 
-        $date = $data['attendance_date'];
-        $selected = $data['selected'] ?? [];
-        $map = $data['attendance'] ?? [];
+    $date     = $data['attendance_date'] ?? $request->input('date');
+    $selected = $data['selected'] ?? [];
+    $map      = $data['attendance'] ?? [];
 
-        // If no explicit checkboxes, assume all provided in attendance[]
-        if (empty($selected) && !empty($map)) {
-            $selected = array_keys($map);
-        }
-
-        if (empty($selected)) {
-            return back()->with('error','Please select at least one employee.')->withInput();
-        }
-
-        $enteredBy = optional(Auth::user())->role_id ?? 'system';
-
-        DB::transaction(function () use ($selected, $map, $date, $enteredBy) {
-            foreach ($selected as $empId) {
-                $status = strtoupper($map[$empId]['status'] ?? 'P'); // default Present
-                if (!in_array($status, ['P','A','H'])) $status = 'P';
-
-                EmpAttendance::updateOrCreate(
-                    ['emp_id' => $empId, 'attendance_date' => $date],
-                    ['status' => $status, 'enter_by' => $enteredBy, 'iStatus' => 1, 'isDelete' => 0]
-                );
-            }
-        });
-
-        return redirect()->route('attendance.index', ['date' => $date])
-            ->with('success', 'Attendance saved.');
+    if (empty($selected) && !empty($map)) {
+        $selected = array_keys($map);
     }
-     public function employeeAttendance($empId)
+    if (empty($selected)) {
+        return back()->with('error','Please select at least one employee.')->withInput();
+    }
+
+    $enteredBy = optional(\Auth::user())->role_id ?? 'system';
+
+    \DB::transaction(function () use ($selected, $map, $date, $enteredBy) {
+        foreach ($selected as $empId) {
+            $status = strtoupper($map[$empId]['status'] ?? 'P');
+            if (!in_array($status, ['P','A','H'])) $status = 'P';
+
+            // take reason only for A/H, trim & limit
+            $rawReason = $map[$empId]['reason'] ?? null;
+            $reason = ($status === 'P') ? null : ( $rawReason ? Str::limit(trim($rawReason), 255, '') : null );
+
+            
+            EmpAttendance::updateOrCreate(
+                ['emp_id' => $empId, 'attendance_date' => $date],
+                [
+                    'status'       => $status,
+                    'leave_reason' => $reason,
+                    'enter_by'     => $enteredBy,
+                    'iStatus'      => 1,
+                    'isDelete'     => 0,
+                ]
+            );
+        }
+    });
+
+    return redirect()->route('attendance.index', ['date' => $date])
+        ->with('success', 'Attendance saved.');
+}
+
+    public function employeeAttendance($empId)
     {
         $from = request('from', now()->startOfMonth()->toDateString());
         $to   = request('to',   now()->endOfMonth()->toDateString());
@@ -119,4 +136,5 @@ class AttendanceController extends Controller
     
         return view('admin.attendance.show', compact('employee', 'attendances'));
     }
+
 }

@@ -33,7 +33,7 @@
 
                                 <div class="row">
                                     {{-- Order Type --}}
-                                    <div class="col-md-6 mb-4">
+                                    <!-- <div class="col-md-4 mb-4">
                                         <label class="form-label">Order Type <span style="color:red;">*</span></label>
                                         <select class="form-select" name="order_type">
                                             @php $ot = old('order_type', $order->order_type ?? ''); @endphp
@@ -45,10 +45,27 @@
                                         @if($errors->has('order_type'))
                                             <span class="text-danger">{{ $errors->first('order_type') }}</span>
                                         @endif
-                                    </div>
+                                    </div> -->
 
+                                    {{-- Rent Type --}}
+                                    <div class="col-md-4 mb-4">
+                                        <label class="form-label">Rent Type <span style="color:red;">*</span></label>
+                                        <select class="form-select" name="rent_type" id="rent_type">
+                                            @php $ot = old('rent_type', $order->rent_type ?? ''); @endphp
+                                            <option id="rent_type" value="" >-- Select --</option>
+                                            @foreach($renttype as $r)
+                                                <option value="{{ $r->rent_price_id }}" {{ (string)old('rent_price_id', $order->rent_type ?? '') === (string)$r->rent_price_id ? 'selected' : '' }}>
+                                                    {{ $r->rent_type }}
+                                                </option>
+                                            @endforeach
+
+                                        </select>
+                                        @if($errors->has('rent_type'))
+                                            <span class="text-danger">{{ $errors->first('rent_type') }}</span>
+                                        @endif
+                                    </div>
                                     {{-- Customer --}}
-                                    <div class="col-md-6 mb-4">
+                                    <div class="col-md-4 mb-4">
                                         <label class="form-label">Customer <span style="color:red;">*</span></label>
                                         <select class="form-select" name="customer_id">
                                             <option value="">-- Select Customer --</option>
@@ -63,8 +80,30 @@
                                         @endif
                                     </div>
 
+                                    {{-- User --}}
+                                    <div class="col-md-4 mb-4">
+                                        <label class="form-label">User Name <span style="color:red;">*</span></label>
+                                        <input type="text" class="form-control" name="user_name"
+                                               value="{{ old('user_name', $order->user_name ?? '') }}" placeholder="User Name">
+                                        @if($errors->has('user_name'))
+                                            <span class="text-danger">{{ $errors->first('user_name') }}</span>
+                                        @endif
+                                        
+                                    </div>
+
+                                    {{-- User --}}
+                                    <div class="col-md-4 mb-4">
+                                        <label class="form-label">User Mobile <span style="color:red;">*</span></label>
+                                        <input type="text" class="form-control" name="user_mobile"
+                                               value="{{ old('user_mobile', $order->user_mobile ?? '') }}" placeholder="e.g. 9876543210">
+                                        @if($errors->has('user_mobile'))
+                                            <span class="text-danger">{{ $errors->first('user_mobile') }}</span>
+                                        @endif
+                                        
+                                    </div>
+
                                     {{-- Tanker --}}
-                                    <div class="col-md-6 mb-4">
+                                    <div class="col-md-4 mb-4">
                                         <label class="form-label">Tanker <span style="color:red;">*</span></label>
                                         <select class="form-select" name="tanker_id">
                                             <option value="">-- Select Tanker --</option>
@@ -79,22 +118,10 @@
                                         @endif
                                     </div>
 
-                                    {{-- Rent Type --}}
-                                    <div class="col-md-6 mb-4">
-                                        <label class="form-label">Rent Type <span style="color:red;">*</span></label>
-                                        <select class="form-select" name="rent_type">
-                                            @php $rt = old('rent_type', $order->rent_type ?? ''); @endphp
-                                            <option value="">-- Select --</option>
-                                            <option value="daily"   {{ $rt=='daily' ? 'selected' : '' }}>Daily</option>
-                                            <option value="monthly" {{ $rt=='monthly' ? 'selected' : '' }}>Monthly</option>
-                                        </select>
-                                        @if($errors->has('rent_type'))
-                                            <span class="text-danger">{{ $errors->first('rent_type') }}</span>
-                                        @endif
-                                    </div>
+                                    
 
                                     {{-- Rent Start Date/Time --}}
-                                    <div class="col-md-6 mb-4">
+                                    <div class="col-md-4 mb-4">
                                         <label class="form-label">Rent Start Date <span style="color:red;">*</span></label>
                                         <input type="datetime-local" class="form-control" name="rent_start_date"
                                                value="{{ old('rent_start_date', isset($order) 
@@ -107,7 +134,7 @@
 
 
                                     {{-- Advance Amount --}}
-                                    <div class="col-md-6 mb-4">
+                                    <div class="col-md-4 mb-4">
                                         <label class="form-label">Advance Amount <span style="color:red;">*</span></label>
                                         <input type="number" class="form-control" name="advance_amount" min="0"
                                                value="{{ old('advance_amount', $order->advance_amount ?? '') }}" placeholder="0">
@@ -117,7 +144,7 @@
                                     </div>
 
                                     {{-- Rent Amount --}}
-                                    <div class="col-md-6 mb-4">
+                                    <div class="col-md-4 mb-4">
                                         <label class="form-label">Rent Amount <span style="color:red;">*</span></label>
                                         <input type="number" class="form-control" name="rent_amount" min="0"
                                                value="{{ old('rent_amount', $order->rent_amount ?? '') }}" placeholder="0">
@@ -127,7 +154,7 @@
                                     </div>
 
                                     {{-- Reference Name --}}
-                                    <div class="col-md-6 mb-4">
+                                    <div class="col-md-4 mb-4">
                                         <label class="form-label">Reference Name <span style="color:red;">*</span></label>
                                         <input type="text" class="form-control" name="reference_name"
                                                value="{{ old('reference_name', $order->reference_name ?? '') }}" placeholder="Reference Name">
@@ -137,7 +164,7 @@
                                     </div>
 
                                     {{-- Reference Mobile --}}
-                                    <div class="col-md-6 mb-4">
+                                    <div class="col-md-4 mb-4">
                                         <label class="form-label">Reference Mobile <span style="color:red;">*</span></label>
                                         <input type="text" class="form-control" name="reference_mobile_no"
                                                value="{{ old('reference_mobile_no', $order->reference_mobile_no ?? '') }}" placeholder="e.g. 9876543210">
@@ -147,7 +174,7 @@
                                     </div>
 
                                     {{-- Reference Address --}}
-                                    <div class="col-md-6 mb-4">
+                                    <div class="col-md-4 mb-4">
                                         <label class="form-label">Reference Address <span style="color:red;">*</span></label>
                                         <input type="text" class="form-control" name="reference_address"
                                                value="{{ old('reference_address', $order->reference_address ?? '') }}" placeholder="Reference Address">
@@ -157,7 +184,7 @@
                                     </div>
 
                                     {{-- Tanker Location --}}
-                                    <div class="col-md-6 mb-4">
+                                    <div class="col-md-4 mb-4">
                                         <label class="form-label">Tanker Location <span style="color:red;">*</span></label>
                                         <input type="text" class="form-control" name="tanker_location"
                                                value="{{ old('tanker_location', $order->tanker_location ?? '') }}" placeholder="Location">
@@ -166,8 +193,17 @@
                                         @endif
                                     </div>
 
+
+                                <div class="col-md-4 mb-4">
+                                        <label class="form-label">Contract <span style="color:red;">*</span></label>
+                                        <textarea  class="form-control" name="contract_text">{{ old('contract_text', $order->contract_text ?? '') }}</textarea>
+                                        @if($errors->has('contract_text'))
+                                            <span class="text-danger">{{ $errors->first('contract_text') }}</span>
+                                        @endif
+                                    </div>
+
                                     {{-- Status --}}
-                                    <div class="col-md-6 mb-4">
+                                    <div class="col-md-4 mb-4">
                                         <label class="form-label">Status <span style="color:red;">*</span></label>
                                         <select class="form-select" name="iStatus">
                                             <option value="1" {{ old('iStatus', $order->iStatus ?? 1) == 1 ? 'selected' : '' }}>Active</option>
@@ -177,6 +213,7 @@
                                             <span class="text-danger">{{ $errors->first('iStatus') }}</span>
                                         @endif
                                     </div>
+
                                 </div>
 
                                 <div class="mt-2">
@@ -200,4 +237,42 @@
         </div>
     </div>
 </div>
+@endsection
+
+@section('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const rentTypeEl  = document.getElementById('rent_type');
+  const amountEl    = document.getElementById('rent_amount');
+
+  async function fetchPriceAndSet() {
+    const rt = rentTypeEl.value;
+    if (!rt) { amountEl.value = ''; return; }
+
+    try {
+      const url = `{{ route('ajax.rent-price') }}?rent_type=${encodeURIComponent(rt)}`;
+      const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }});
+      const data = await res.json();
+
+      if (res.ok && data.ok && typeof data.amount !== 'undefined') {
+        amountEl.value = data.amount; // overwrite on every change
+      } else {
+        amountEl.value = '';
+        console.warn(data.message || 'Price not found');
+        // Optional: show a toast/alert if you want
+      }
+    } catch (e) {
+      console.error(e);
+      amountEl.value = '';
+    }
+  }
+
+  rentTypeEl.addEventListener('change', fetchPriceAndSet);
+
+  // Auto-fill on page load if rent_type is preselected (e.g., edit)
+  if (rentTypeEl.value && !amountEl.value) {
+    fetchPriceAndSet();
+  }
+});
+</script>
 @endsection

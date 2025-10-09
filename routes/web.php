@@ -144,23 +144,28 @@ Route::prefix('admin')->group(function () {
     Route::post('orders/bulk-delete',  [OrderMasterController::class, 'bulkDelete'])->name('orders.bulk-delete');
     Route::post('orders/change-status/{id}', [OrderMasterController::class, 'changeStatus'])->name('orders.change-status');
     Route::get('orders/{id}/toggle-receive', [OrderMasterController::class, 'toggleReceive'])->name('orders.toggle-receive');
-// routes/web.php
-Route::post('/orders/{order}/mark-received', action: [OrderMasterController::class, 'markReceived'])
-     ->name('orders.mark-received');
+    Route::post('/orders/{order}/mark-received', action: [OrderMasterController::class, 'markReceived'])
+        ->name('orders.mark-received');
+    Route::get('/orders/{id}/orders-summary', [OrderMasterController::class, 'customerOrdersSummary'])
+        ->name('orders.orders-summary');
 
-});
+
+    });
 
 Route::post('payments/store', [PaymentController::class, 'store'])->name('payments.store');
 Route::get('orders/{order}/payments/history', [PaymentController::class, 'history'])
         ->name('payments.history');
 
-Route::middleware(['auth']) // add other middleware if you use them
+
+Route::middleware(['auth'])
     ->prefix('admin')
     ->group(function () {
-        // /admin/rent-prices  → names: rent-prices.index, rent-prices.store, etc.
-        Route::resource('rent-prices', RentPriceController::class)->only([
-            'index', 'store', 'update', 'destroy'
-        ]);
+        Route::resource('rent-prices', RentPriceController::class)
+             ->only(['index','store','update','destroy']);
+
+        // point to a method, and use correct ->name('...')
+        Route::get('ajax/rent-price', [RentPriceController::class, 'getRentPrice'])
+             ->name('ajax.rent-price');
     });
 
 
@@ -207,3 +212,35 @@ Route::middleware(['web','auth'])->prefix('admin')->name('admin.')->group(functi
 });
 
 
+// routes/web.php
+Route::prefix('admin')->middleware(['auth'])->group(function () {
+    Route::get('payment-received-user', [App\Http\Controllers\Admin\PaymentReceivedUserController::class, 'index'])->name('payment-received-user.index');
+    Route::post('payment-received-user/store', [App\Http\Controllers\Admin\PaymentReceivedUserController::class, 'store'])->name('payment-received-user.store');
+    Route::get('payment-received-user/edit/{id}', [App\Http\Controllers\Admin\PaymentReceivedUserController::class, 'edit'])->name('payment-received-user.edit');
+    Route::post('payment-received-user/update/{id}', [App\Http\Controllers\Admin\PaymentReceivedUserController::class, 'update'])->name('payment-received-user.update');
+    Route::post('payment-received-user/delete', [App\Http\Controllers\Admin\PaymentReceivedUserController::class, 'destroy'])->name('payment-received-user.delete');
+    Route::get('payment-received-user/toggle/{id}', [App\Http\Controllers\Admin\PaymentReceivedUserController::class, 'toggleStatus'])->name('payment-received-user.toggle');
+});
+
+/*------------- emp withdrawal  ----------------------------------*/
+
+Route::prefix('admin')->middleware(['auth'])->group(function () {
+    Route::get('employee-extra-withdrawal', [App\Http\Controllers\Admin\EmployeeExtraWithdrawalController::class, 'index'])->name('employee-extra-withdrawal.index');
+    Route::post('employee-extra-withdrawal/store', [App\Http\Controllers\Admin\EmployeeExtraWithdrawalController::class, 'store'])->name('employee-extra-withdrawal.store');
+    Route::get('employee-extra-withdrawal/edit/{id}', [App\Http\Controllers\Admin\EmployeeExtraWithdrawalController::class, 'edit'])->name('employee-extra-withdrawal.edit');
+    Route::post('employee-extra-withdrawal/update/{id}', [App\Http\Controllers\Admin\EmployeeExtraWithdrawalController::class, 'update'])->name('employee-extra-withdrawal.update');
+    Route::post('employee-extra-withdrawal/delete', [App\Http\Controllers\Admin\EmployeeExtraWithdrawalController::class, 'destroy'])->name('employee-extra-withdrawal.delete');
+});
+
+
+/*-----------------reports -------------------------------------------*/
+Route::prefix('admin')->middleware(['auth'])->group(function () {
+    Route::get('expence-report', [App\Http\Controllers\Admin\ExpenceReportController::class, 'index'])->name('admin.expence-report.index');
+    Route::get('expence-report/{date}', [App\Http\Controllers\Admin\ExpenceReportController::class, 'show'])->name('admin.expence-report.show');
+});
+
+
+Route::prefix('admin')->middleware(['auth'])->group(function () {
+    Route::any('attendance-report', [App\Http\Controllers\Admin\AttendanceReportController::class, 'index'])
+         ->name('admin.attendance-report.index');
+});
