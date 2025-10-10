@@ -18,6 +18,7 @@ class Customer extends Model
         'customer_mobile',
         'customer_email',
         'customer_address',
+        'customer_type',
         'iStatus',
         'isDelete',
     ];

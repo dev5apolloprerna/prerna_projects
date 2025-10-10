@@ -19,6 +19,8 @@ use App\Http\Controllers\Admin\EmpSalaryController;
 use App\Http\Controllers\Admin\DailyExpenceTypeController;
 use App\Http\Controllers\Admin\DailyExpenceController;
 
+use App\Http\Controllers\Admin\DailyOrderController;
+
 Route::fallback(function () {
      return view('errors.404');
 });
@@ -243,4 +245,22 @@ Route::prefix('admin')->middleware(['auth'])->group(function () {
 Route::prefix('admin')->middleware(['auth'])->group(function () {
     Route::any('attendance-report', [App\Http\Controllers\Admin\AttendanceReportController::class, 'index'])
          ->name('admin.attendance-report.index');
+});
+
+
+/*--------------------------------daily order controller--------------------------------------*/
+
+
+Route::prefix('daily-orders')->group(function () {
+    Route::get('/', [DailyOrderController::class, 'index'])->name('daily-orders.index');
+    Route::get('daily-orders/create', [DailyOrderController::class, 'create'])->name('daily-orders.create');
+    Route::post('/', [DailyOrderController::class, 'store'])->name('daily-orders.store');
+    Route::get('daily-orders/edit/{id}', [DailyOrderController::class, 'edit'])->name('daily-orders.edit');
+    Route::put('/{id}', [DailyOrderController::class, 'update'])->name('daily-orders.update');
+    Route::delete('/{id}', [DailyOrderController::class, 'destroy'])->name('daily-orders.destroy');
+
+    // Payments against a customer (optional daily_order_id can be passed)
+    Route::post('daily-orders/{daily_order}/payment', [DailyOrderController::class, 'receivePayment'])
+        ->name('daily-orders.payment');
+
 });

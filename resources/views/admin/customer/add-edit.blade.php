@@ -61,6 +61,20 @@
                             <span class="text-danger">{{ $errors->first('customer_address') }}</span>
                         @endif
                     </div>
+
+                    <div class="col-md-6 mb-4">
+                        <label class="form-label">Customer Type <span style="color:red;">*</span></label>
+                        <select class="form-select" name="customer_type" required>
+                            <option value="">Select Customer Type </option>
+                             <option value="customer" {{ old('customer_type', $customer->customer_type ?? 'customer') == 'customer' ? 'selected' : '' }}>Customer</option>
+                             <option value="retailer" {{ old('customer_type', $customer->customer_type ?? 'retailer') == 'retailer' ? 'selected' : '' }}>Retailer</option>
+
+                        </select>
+                        @if($errors->has('customer_type'))
+                            <span class="text-danger">{{ $errors->first('customer_type') }}</span>
+                        @endif
+                    </div>
+
                 </div>
 
                 <button type="submit" class="btn btn-success">

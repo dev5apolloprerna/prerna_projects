@@ -45,6 +45,7 @@
                                     <th>Mobile</th>
                                     <th>Email</th>
                                     <th>Address</th>
+                                    <th>Customer Type</th>
                                     <th>Created On</th>
                                     <th>Action</th>
                                 </tr>
@@ -57,6 +58,7 @@
                                         <td>{{ $customer->customer_mobile }}</td>
                                         <td>{{ $customer->customer_email }}</td>
                                         <td>{{ $customer->customer_address }}</td>
+                                        <td>{{ $customer->customer_type }}</td>
                                         <td>{{ date('d-m-Y', strtotime($customer->created_at)) }}</td>
                                         <td>
                                             <a href="{{ route('customer.edit', $customer->customer_id) }}" class="btn btn-sm btn-primary">

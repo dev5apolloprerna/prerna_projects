@@ -125,9 +125,9 @@ class EmpSalaryController extends Controller
 
         return response()->json([
             'ok'          => true,
-            'daily_wages' => $dailyWages,
+            'daily_wages' => $emp->daily_wages,
             'emi_amount' => $withdrawals->emi_amount,
-            'mobile'      => $att->mobile_recharge,
+            // 'mobile'      => $att->mobile_recharge ?? 50,
             'counts'      => ['P' => $P, 'H' => $H, 'A' => $A],
             'units'       => $units,
             'amount'      => $amount,
@@ -155,7 +155,9 @@ public function store(Request $req)
 
         // Step 1️⃣: Calculate salary based on attendance
         $amount = (int) ($req->salary_amount ?? 0);
-        if ($amount <= 0) {
+        
+        if ($amount <= 0) 
+        {
             $emp = DB::table('employee_master')->where('emp_id', $empId)->first();
             $dailyWages = (int) ($emp->daily_wages ?? 0);
 
@@ -176,13 +178,13 @@ public function store(Request $req)
         // Step 2️⃣: Deduct withdrawal EMIs
 
         $withdrawals = EmployeeExtraWithdrawal::where('emp_id', $empId)
-            ->where('remaining_amount', '>', 0)
+            ->where('remaining_amount', '>=', 0)
             ->get();
 
         $totalWithdrawalDeducted = 0;
 
         foreach ($withdrawals as $w) {
-            $emi = (float) ($w->emi_amount ?? 0);
+            $emi = (float) ($req->withdrawal_deducted ?? $w->emi_amount);
 
             if ($emi > 0) {
                 $deduct = min($emi, $w->remaining_amount);
@@ -197,12 +199,12 @@ public function store(Request $req)
         $netSalary = $amount - $totalWithdrawalDeducted + $mobileRecharge;
         if ($netSalary < 0) $netSalary = 0;
 
-
         // Step 4️⃣: Save salary record
         DB::table('emp_salary')->insert([
             'emp_id'        => $empId,
             'salary_date'   => $from->toDateString(),
             'last_date'     => $to->toDateString(),
+            'daily_wages' => $req->daily_wages,
             'salary_amount' => $netSalary,
             'withdrawal_deducted' => $totalWithdrawalDeducted, // add this column if you want tracking
             'mobile_recharge'     => $mobileRecharge,
@@ -219,6 +221,7 @@ public function store(Request $req)
     // Update (Edit)
     public function update(Request $req, $id)
     {
+
         $v = Validator::make($req->all(), [
             'emp_id'        => 'required|integer|exists:employee_master,emp_id',
             'salary_date'   => 'required|date', // FROM
@@ -232,6 +235,7 @@ public function store(Request $req)
         $to    = Carbon::parse($req->last_date)->endOfDay();
         if ($to->lt($from)) $to = $from->copy()->endOfDay();
 
+ 
         $amount = (int) ($req->salary_amount ?? 0);
         if ($amount <= 0) {
             $emp = DB::table('employee_master')->where('emp_id', $empId)->first();
@@ -251,14 +255,17 @@ public function store(Request $req)
             $amount = (int) round($dailyWages * $units);
         }
 
+
         $withdrawals = EmployeeExtraWithdrawal::where('emp_id', $empId)
-            ->where('remaining_amount', '>', 0)
+            ->where('remaining_amount', '>=', 0)
             ->get();
 
         $totalWithdrawalDeducted = 0;
 
-        foreach ($withdrawals as $w) {
-            $emi = (float) ($w->emi_amount ?? 0);
+        foreach ($withdrawals as $w) 
+        {
+        
+            $emi = (float) ($req->withdrawal_deducted);
 
             if ($emi > 0) {
                 $deduct = min($emi, $w->remaining_amount);
@@ -278,6 +285,7 @@ public function store(Request $req)
             'emp_id'        => $empId,
             'salary_date'   => $from->toDateString(),
             'last_date'     => $to->toDateString(),
+            'daily_wages' => $req->daily_wages,
             'salary_amount' => $amount,
             'withdrawal_deducted' => $totalWithdrawalDeducted, // add this column if you want tracking
             'mobile_recharge'     => $mobileRecharge,

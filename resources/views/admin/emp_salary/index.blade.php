@@ -93,6 +93,8 @@
                     @endif
                   </td>-->
                   <td>
+
+
                     <button type="button"
                             class="btn btn-sm btn-warning editBtn"
                             data-bs-toggle="modal"
@@ -102,6 +104,9 @@
                             data-emp="{{ $row->emp_id }}"
                             data-salary_date="{{ \Carbon\Carbon::parse($row->salary_date)->toDateString() }}"  {{-- From --}}
                             data-last_date="{{ \Carbon\Carbon::parse($row->last_date ?? $row->salary_date)->toDateString() }}" {{-- To --}}
+                              data-withdrawal="{{ $row->withdrawal_deducted }}"
+                              data-mobile="{{ $row->mobile_recharge }}"
+                              data-daily_wages="{{ $row->daily_wages ?? '' }}"
                             data-amount="{{ (int)$row->salary_amount }}"
                             data-status="{{ (int)$row->iStatus }}"
                     >
@@ -150,6 +155,7 @@
     <form method="POST" action="{{ route('emp-salaries.store') }}" id="salaryForm" class="modal-content">
       @csrf
       <input type="hidden" name="_method" id="formMethod" value="POST">
+      <input type="hidden" name="daily_wages" id="daily_wages">
 
       <div class="modal-header">
         <h5 class="modal-title" id="modalTitle">Add Salary</h5>
@@ -233,8 +239,11 @@ document.addEventListener('DOMContentLoaded', function () {
   const toEl   = document.getElementById('last_date');   // TO
   const amtEl  = document.getElementById('salary_amount');
   const deduct  = document.getElementById('withdrawal_amount');
+  const daily_wages  = document.getElementById('daily_wages');
   const hint   = document.getElementById('amount_hint');
   const status = document.getElementById('iStatus');
+  const mobileEl = document.getElementById('mobile_recharge');
+  const dailyWagesEl  = document.getElementById('daily_wages'); // hidden input
 
   let isEdit   = false;
   let fromAuto = true; // if user types From manually, we stop auto-overwriting
@@ -263,6 +272,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (data.ok) {
       amtEl.value = data.amount;
       deduct.value = data.emi_amount;
+      daily_wages.value = data.daily_wages;
       hint.textContent = `${data.note} (P=${data.counts.P ?? 0}, H=${data.counts.H ?? 0}, A=${data.counts.A ?? 0})`;
     } else {
       hint.textContent = '';
@@ -290,25 +300,32 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // ===== EDIT =====
-    isEdit = true;
-    const id     = trigger.dataset.id;
-    const emp_id = trigger.dataset.emp;
-    const from   = trigger.dataset.salary_date; // 'YYYY-MM-DD'
-    const to     = trigger.dataset.last_date;   // 'YYYY-MM-DD'
-    const amount = trigger.dataset.amount;
-    const istat  = trigger.dataset.status;
+        isEdit = true;
+
+    const id       = trigger.dataset.id;
+    const emp_id   = trigger.dataset.emp;
+    const from     = trigger.dataset.salary_date; // 'YYYY-MM-DD'
+    const to       = trigger.dataset.last_date;   // 'YYYY-MM-DD'
+    const amount   = trigger.dataset.amount;
+    const dWages   = trigger.dataset.daily_wages; // NOTE: distinct var name
+    const istat    = trigger.dataset.status;
+    const withdrawal = trigger.dataset.withdrawal; // from emp_salary.withdrawal_deducted
+    const mobile     = trigger.dataset.mobile;     // from emp_salary.mobile_recharge
 
     form.action     = "{{ route('emp-salaries.update', ':id') }}".replace(':id', id);
     methodIn.value  = "PUT";
     modalTitle.innerText = "Edit Salary";
 
-    emp.value    = emp_id || '';
-    fromEl.value = from || '';
-    toEl.value   = to   || '';
-    amtEl.value  = amount || '';
-    status.value = istat ?? '1';
+    emp.value         = emp_id || '';
+    fromEl.value      = from || '';
+    toEl.value        = to   || '';
+    amtEl.value       = amount || '';
+    deduct.value      = withdrawal || '';
+    mobileEl.value    = mobile || '';
+    dailyWagesEl.value= dWages || '';
+    status.value      = istat ?? '1';
 
-    // For edit we don't auto-change dates; but we can re-quote to refresh the hint
+    // For edit, we only refresh the hint (and hidden wages) without overwriting entered values
     hint.textContent = '';
     quote();
   });
@@ -320,21 +337,16 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!isEdit) {
       const data = await fetchLastRange(emp.value);
       if (data && data.ok) {
-        // From = last_date + 1 day (or today if none)
-        if (fromAuto || !fromEl.value) fromEl.value = data.from_default;
-        // To = today by default
-        if (!toEl.value) toEl.value = data.to_default;
-        // If To < From, push To = From
+        if (fromAuto || !fromEl.value) fromEl.value = data.from_default; // From
+        if (!toEl.value) toEl.value = data.to_default;                    // To = today
         if (toEl.value < fromEl.value) toEl.value = fromEl.value;
       }
     }
-
     quote();
   });
 
-  // Quote whenever dates change
+  // Quote whenever dates change (and keep TO ≥ FROM)
   fromEl.addEventListener('change', () => {
-    // Ensure TO is not earlier than FROM
     if (toEl.value && toEl.value < fromEl.value) toEl.value = fromEl.value;
     quote();
   });
@@ -344,6 +356,8 @@ document.addEventListener('DOMContentLoaded', function () {
     quote();
   });
 });
+
+
 </script>
 
 @endsection

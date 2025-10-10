@@ -37,9 +37,10 @@ class CustomerController extends Controller
             'customer_mobile' => 'required',
             'customer_email' => 'nullable|email',
             'customer_address' => 'required',
+            'customer_type' => 'required',
         ]);
 
-        Customer::create($request->only(['customer_name', 'customer_mobile', 'customer_email', 'customer_address']));
+        Customer::create($request->only(['customer_name', 'customer_mobile', 'customer_email', 'customer_address','customer_type']));
 
         return redirect()->route('customer.index')->with('success', 'Customer added successfully.');
     }
@@ -57,10 +58,11 @@ class CustomerController extends Controller
             'customer_mobile' => 'required',
             'customer_email' => 'nullable|email',
             'customer_address' => 'required',
+            'customer_type' => 'required',
         ]);
 
         $customer = Customer::findOrFail($id);
-        $customer->update($request->only(['customer_name', 'customer_mobile', 'customer_email', 'customer_address']));
+        $customer->update($request->only(['customer_name', 'customer_mobile', 'customer_email', 'customer_address','customer_type']));
 
         return redirect()->route('customer.index')->with('success', 'Customer updated successfully.');
     }
